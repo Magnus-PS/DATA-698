@@ -76,6 +76,97 @@ To be amended ...
 
 ## Experimentation & Results
 
+### Data Gathering & Preprocessing
+
+In order to create our dependent 'health score' variable, I first familiarized myself with the data at hand. 
+
+Life expectancy, obesity, and physical activity data were downloaded from the [Institute for Health Metrics and Evaluation](http://www.healthdata.org/us-health/data-download) and converted to a csv-compatible form, where then a subset of columns were selected for our consideration for the creation of a dependent 'health score' variable.
+
+* For **life expectancy data** we read in: `Male life expectancy, 2010 (years)`, `Female life expectancy, 2010 (years)`, `Difference in male life expectancy, 1985-2010 (years)`, and	`Difference in female life expectancy, 1985-2010 (years)`.
+* For **obesity data** we read in: `Male obesity prevalence, 2009 (%)`, `Female obesity  prevalence, 2009 (%)`, `Difference in male obesity prevalence, 2001-2009 (percentage points)`, and `Difference in female obesity prevalence, 2001-2009 (percentage points)`.
+* For **physical activity data** we read in: `Male sufficient physical activity  prevalence, 2009 (%)`, `Female sufficient physical activity  prevalence, 2009 (%)`, `Difference in male sufficient physical activity prevalence, 2001-2009 (percentage points)`, and `Difference in female sufficient physical activity prevalence, 2001-2009 (percentage points)`.
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
+
+#Read in life expectancy data, convert to tibble, and select pertinent columns:
+longevity <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/IHME_LifeExpectancy.csv")
+life_table <- as_tibble(longevity)
+life_table <- life_table %>% dplyr::select(1:2,13:16) %>% na.omit()
+
+#Read in obesity data, convert to tibble, and select pertinent columns:
+obesity <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/IHME_Obesity.csv")
+obesity_table <- as_tibble(obesity)
+obesity_table <- obesity_table %>% dplyr::select(1:2,5:6,9:10) %>% na.omit()
+
+#Read in physical activity data, convert to tibble, and select pertinent columns:
+activity <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/IHME_PhysicalActivity.csv")
+act_table <- as_tibble(activity)
+act_table <- act_table %>% dplyr::select(1:2,5:6,9:10) %>% na.omit()
+
+###LIFE EXPECTANCY DATA: exploration, normalization, and compilation
+
+#Explore life expectancy data at a county level:
+glimpse(life_table)
+summary(life_table)
+
+#Extract variables of interest
+m1 <- life_table$`Male life expectancy, 2010 (years)`
+f1 <- life_table$`Female life expectancy, 2010 (years)`
+dm1 <- life_table$`Difference in male life expectancy, 1985-2010 (years)`
+df1 <- life_table$`Difference in female life expectancy, 1985-2010 (years)`
+
+#Normalize data scale to be from 0 to 1
+n_m1 = (m1-min(m1))/(max(m1)-min(m1))
+n_f1 = (f1-min(f1))/(max(f1)-min(f1))
+n_dm1 = (dm1-min(dm1))/(max(dm1)-min(dm1))
+n_df1 = (df1-min(df1))/(max(df1)-min(df1))
+
+#Histogram of original vs. normalized data
+##Life expectancy histograms
+par(mfrow=c(2,2))
+hist(m1, breaks=10, xlab="Age (years)", col="lightblue", main="Male life expectancy, 2010")
+hist(n_m1, breaks=10, xlab="Normalized Age (years)", col="lightblue", main="Male life expectancy, 2010")
+hist(f1, breaks=10, xlab="Age (years)", col="lightblue", main="Female life expectancy, 2010")
+hist(n_f1, breaks=10, xlab="Normalized Age (years)", col="lightblue", main="Female life expectancy, 2010")
+
+##Longevity improvement histograms
+par(mfrow=c(2,2))
+hist(dm1, breaks=10, xlab="Age (years)", col="lightblue", main="Male longevity improvement, 1985-2010")
+hist(n_dm1, breaks=10, xlab="Normalized Age (years)", col="lightblue", main="Male longevity improvement, 1985-2010")
+hist(df1, breaks=10, xlab="Age (years)", col="lightblue", main="Female longevity improvement, 1985-2010")
+hist(n_df1, breaks=10, xlab="Normalized Age (years)", col="lightblue", main="Female longevity improvement, 1985-2010")
+
+#Add normalized variables together
+life <- n_m1 + n_dm1 + n_f1 + n_df1
+
+#Normalize activity to 0-1 range
+n_life = (life-min(life))/(max(life)-min(life))
+#head(n_life)
+
+# Histogram of original vs. normalized data
+#par(mfrow=c(1,2))
+#hist(life, breaks=10, xlab="Score", col="lightblue", main="Longevity metric")
+hist(n_life, breaks=10, xlab="Normalized Score", col="lightblue", main="Longevity metric")
+
+summary(n_life) #slight left skew
+
+```
+
+For each over-arching variable (ie. longevity), we read in the 4 variables listed above, normalized, and then compiled the over-arching variable as a summation of the normalized sub-variables.
+
+The normalization of sub-variables and (later) over-arching variables was done in order to bring all data to a 0-to-1 scale via the following equation:
+
+$$
+Transformed.Values = \frac{(Values - Min)}{(Max - Min)}
+$$
+
+Upon normalization of our over-arching variables, we created our dependent 'healthy lifestyle' variable as a combination of longevity, obesity, and physical activity:
+
+$$
+Lifestyle = Normalized.Life - Normalized.Obesity + Normalized.Activity
+$$
+
+LEFT OFF HERE: left off copying over Obesity code (preprocessing line 158)
 
 ### Data Exploration & Preparation
 
