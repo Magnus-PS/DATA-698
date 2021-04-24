@@ -1,0 +1,571 @@
+---
+title: "DATA 698 IndVar Processing"
+author: "Magnus Skonberg"
+date: "4/17/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(RCurl)
+library(rvest)
+library(stringr)
+library(tidyr)
+library(kableExtra)
+library(BBmisc)
+library(tm)
+library(sqldf)
+library(inspectdf)
+library(corrplot)
+library(MASS)
+```
+
+Read in independent variable data
+
+### Alcohol
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE}
+#Read in alcohol data, convert to tibble, and drop impertinent observation:
+alcohol <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/AlcoholConsumption.csv")
+alcohol <- as_tibble(alcohol)
+alcohol <- alcohol[-1,] #drop State = National
+#dim(alcohol) #3178 x 6
+
+alcohol <- alcohol[alcohol$Location != alcohol$State,] #drop state observations from Location column
+#dim(alcohol) #3178 - 3127 = 51 observations dropped
+
+#rename columns
+alcohol <- alcohol %>% rename( 
+    County = Location,
+    Hvy = Hvy_2012,
+    Bng = Binge_2012,
+    HvyPctChg = `HvyPctChg_2005-2012`,
+    BngPctChg = `BingePctChg_2005-2012`)
+
+#drop excess verbage from County column
+stopwords <- c("and", "Area", "Borough", "Census", "City", "County", "Division", "Municipality", "Parish")
+alcohol$County <- removeWords(alcohol$County, stopwords)
+head(alcohol)
+
+```
+
+For the **Alcohol** dataset we end up with a 3127 observation x 6 variable data frame with states written out in the `State` column and counties listed without additional verbage (ie. County, Borough) in the `County` column.
+
+### Cardiovascular Disease
+
+```{r}
+#Read in education data, convert to tibble, and drop impertinent observation:
+heart <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/CardiovascularDisease.csv")
+heart <- as_tibble(heart)
+heart <- subset(heart, select = -c(`Mortality Rate, 2010*`)) #drop 2010
+heart <- heart[-1,] #drop State = National
+#dim(heart) #3193 x 4
+
+# remove State == Location
+heart <- heart[heart$Location != heart$State,]
+dim(heart) #3193 - 3143 = 50 observations removed
+
+# retitle columns
+heart <- heart %>% rename( 
+    County = Location,
+    Mortality_2005 = `Mortality Rate, 2005*`,
+    Mortality_2014 = `Mortality Rate, 2014*`)
+
+# retain value EXCLUSIVELY for Mortality Rate columns
+heart$Mortality_2005 <- gsub("\\s*\\([^\\)]+\\)","",as.character(heart$Mortality_2005))
+heart$Mortality_2014 <- gsub("\\s*\\([^\\)]+\\)","",as.character(heart$Mortality_2014))
+
+#convert columns to proper type
+heart$Mortality_2005 <- as.double(heart$Mortality_2005)
+heart$Mortality_2014 <- as.double(heart$Mortality_2014)
+
+#drop excess verbage from County column
+heart$County <- removeWords(heart$County, stopwords)
+heart$County <- gsub("(.*),.*", "\\1", heart$County) #remove everything after comma
+
+# add Chg column
+heart$MortalityChg <- heart$Mortality_2014 - heart$Mortality_2005
+
+#finalize format of df
+heart <- subset(heart, select = -c(`Mortality_2005`)) #drop 2005
+heart <- heart %>% rename( Mortality = Mortality_2014)
+
+#head(heart)
+```
+
+For the **heart** dataset we end up with a 3143 observation x 5 variable data frame with states written out in the `State` column and counties listed without additional verbage (ie. County, Borough) in the `County` column. *It's important to note that the mortality rate is lister per 100,000 residents.*
+
+### Education
+
+```{r}
+#Read in education data, convert to tibble, and drop impertinent observation:
+education <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/Education.csv")
+education <- as_tibble(education)
+education <- education[-1,] #drop State = National
+
+education$State <- state.name[match(education$State, state.abb)] #convert state abbreviation to name
+
+education <- education[education$`Area name` != education$State,] #drop state observations from Area name column
+#dim(education) #3281 - 3233 = 48 observations dropped
+
+#rename columns
+education <- education %>% rename(
+    County = `Area name`,
+    LTHighSchool = `Percent of adults with less than a high school diploma, 2015-19`,
+    HighSchool = `Percent of adults with a high school diploma only, 2015-19`,
+    SomeCollege = `Percent of adults completing some college or associate's degree, 2015-19`,
+    College = `Percent of adults with a bachelor's degree or higher, 2015-19`)
+
+#drop excess verbage from County column
+education$County <- removeWords(education$County, stopwords)
+
+#head(education) #verify
+
+```
+
+For the **Education** dataset we end up with a 3233 observation x 6 variable data frame with states written out in the `State` column and counties listed without additional verbage (ie. County, Borough) in the `County` column.
+
+### EQI
+
+```{r}
+#Read in eqi data and convert to tibble:
+eqi <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/EnvironmentalQualityIndex.csv")
+eqi <- as_tibble(eqi)
+eqi <- subset(eqi, select = -c(3:7)) #drop indices that makeup EQI score
+
+eqi$State <- state.name[match(eqi$State, state.abb)] #convert state abbreviation to name
+
+#rename columns
+eqi <- eqi %>% rename(
+    County = County_Name,
+    EQI = environmental_quality_index)
+
+#drop excess verbage from County column
+eqi$County <- removeWords(eqi$County, stopwords)
+
+#head(eqi) #verify
+#dim(eqi) #3281 x 6
+
+```
+
+For the **EQI** dataset we end up with a 3143 observation x 8 variable data frame with states written out in the `State` column and counties listed without additional verbage (ie. County, Borough) in the `County` column.
+
+### Food Insecurity
+
+```{r}
+#Read in food insecurity data and convert to tibble:
+food <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/FoodInsecurity.csv")
+food <- as_tibble(food)
+#head(food)
+
+#drop FIPS
+food <- subset(food, select=-c(FIPS))
+#dim(food) #3142 x 3: no need to drop observations
+
+#convert State to full name
+food$State <- state.name[match(food$State, state.abb)] #convert state abbreviation to name
+
+#rename columns
+food <- food %>% rename(
+    County = `County, State`,
+    FoodInsecurity = `2018 Food Insecurity Rate`)
+
+#remove excess verbage from County
+food$County <- removeWords(food$County, stopwords)
+food$County <- gsub("(.*),.*", "\\1", food$County) #remove everything after comma
+
+#drop % from Food Insecurity and convert to double
+food$FoodInsecurity = as.double(gsub("[\\%,]", "", food$FoodInsecurity))
+
+#head(food) #verify
+
+```
+Skipped ...
+
+### Sunlight
+
+```{r}
+#Read in sun data and convert to tibble:
+sun <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/Sunlight.csv")
+sun <- as_tibble(sun)
+#dim(sun) #3161 x 3
+
+#rename column
+sun <- sun %>% rename(Sun = `Avg Daily Sunlight`)
+
+#drop excess verbage from County column
+sun$County <- removeWords(sun$County, stopwords)
+sun$County <- gsub("(.*),.*", "\\1", sun$County) #remove everything after comma
+
+head(sun) #verify
+
+```
+
+For the **sun** dataset we end up with a 3161 observation x 3 variable data frame with states written out in the `State` column and counties listed without additional verbage (ie. County, Borough) in the `County` column.
+
+### Unemployment
+
+```{r}
+#Read in une ployment data and convert to tibble:
+unemp <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/Unemployment.csv")
+unemp <- as_tibble(unemp)
+unemp <- unemp[-1,] #drop State = National
+unemp <- subset(unemp, select=-c(3)) #drop 2016
+
+unemp$State <- state.name[match(unemp$State, state.abb)] #convert state abbreviation to name
+unemp <- unemp[unemp$area_name != unemp$State,] #drop state observations from Area name column
+
+unemp <- unemp %>% rename(
+    County = area_name,
+    Unemployment = Unemployment_rate_2019,
+    UnemploymentChg = `Unemployment_chg_2016-2019`) #rename columns
+
+unemp$County <- removeWords(unemp$County, stopwords) #drop excess verbage from County column
+unemp$County <- gsub("(.*),.*", "\\1", unemp$County) #remove everything after comma
+
+#dim(unemp) #3274 - 3224 = 50 dropped
+head(unemp) #verify
+
+```
+
+For the **unemployment** dataset we end up with a 3161 observation x 3 variable data frame with states written out in the `State` column and counties listed without additional verbage (ie. County, Borough) in the `County` column.
+
+### Income & Poverty
+
+```{r}
+#Read in wealth data and convert to tibble:
+wealth <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/Wealth.csv")
+wealth <- as_tibble(wealth)
+wealth <- wealth[-1,] #drop State = National
+#dim(wealth) #3193 x 4
+
+wealth$State <- state.name[match(wealth$State, state.abb)] #convert state abbreviation to name
+wealth <- wealth[wealth$County != wealth$State,] #drop state observations from Area name column
+#dim(wealth) #3193 - 3143 = 50 observations dropped
+
+#convert columns to proper type
+wealth$PovertyRate <- as.double(wealth$PovertyRate)
+wealth$MedianHouseholdIncome <- as.numeric(gsub(",","",wealth$MedianHouseholdIncome))
+
+#rename columns
+wealth <- wealth %>% rename(
+    Poverty = PovertyRate,
+    Income = MedianHouseholdIncome) #rename columns
+
+wealth$County <- removeWords(wealth$County, stopwords) #drop excess verbage from County column
+
+#head(wealth)
+
+```
+
+For the **wealth** dataset we end up with a 3143 observation x 4 variable data frame with states written out in the `State` column and counties listed without additional verbage (ie. County, Borough) in the `County` column.
+
+### Population
+
+```{r}
+#Read in population data and convert to tibble:
+pop <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/population.csv")
+pop <- as_tibble(pop)
+
+# rename columns
+pop <- pop %>% rename(
+    State = STNAME,
+    County = CTYNAME,
+    Pop_2010 = CENSUS2010POP,
+    Population = POPESTIMATE2019,
+    Births = BIRTHS2019,
+    Deaths = DEATHS2019,
+    NetMig = NETMIG2019) #rename columns
+
+#add population change variable
+pop$PopChg <- pop$Population - pop$Pop_2010
+
+pop <- subset(pop, select=-c(3)) #drop 2010
+
+#dim(pop) #3193 x 7
+pop <- pop[pop$County != pop$State,] #drop state observations from Area name column
+#dim(pop) #3193 - 3141 = 52 observations dropped
+
+pop$County[1802] <- "Dona Ana County" #invalid UTF-8
+pop$County <- removeWords(pop$County, stopwords) #drop excess verbage from County column
+
+#head(pop)
+
+```
+
+For the **population** dataset we end up with a 3141 observation x 7 variable data frame with states written out in the `State` column and counties listed without additional verbage (ie. County, Borough) in the `County` column.
+
+### Merge df's
+
+Place into consistent format with dependent variables (state-count-...)
+
+```{r}
+#MERGE DF's
+
+#1. merge health score and alcohol df's
+
+##time white space
+alcohol$County <- trimws(alcohol$County)
+starter_df$County <- trimws(starter_df$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM starter_df
+             LEFT JOIN alcohol ON starter_df.State = alcohol.State AND starter_df.County = alcohol.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(4,5))
+
+#2. merge heart to df
+
+##time white space
+heart$County <- trimws(heart$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN heart ON df.State = heart.State AND df.County = heart.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(8,9))
+
+#3. merge education to df
+
+##time white space
+education$County <- trimws(education$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN education ON df.State = education.State AND df.County = education.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(10,11))
+
+#4. merge eqi to df
+
+##time white space
+eqi$County <- trimws(eqi$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN eqi ON df.State = eqi.State AND df.County = eqi.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(14,15))
+
+#5. merge food to df
+
+##time white space
+food$County <- trimws(food$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN food ON df.State = food.State AND df.County = food.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(15,16))
+
+#6. merge sun to df
+
+##time white space
+sun$County <- trimws(sun$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN sun ON df.State = sun.State AND df.County = sun.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(16,17))
+
+#7. merge unemp to df
+
+##time white space
+unemp$County <- trimws(unemp$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN unemp ON df.State = unemp.State AND df.County = unemp.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(17,18))
+
+#8. merge wealth to df
+
+##time white space
+wealth$County <- trimws(wealth$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN wealth ON df.State = wealth.State AND df.County = wealth.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(19,20))
+
+#9. merge pop to df
+
+##time white space
+pop$County <- trimws(pop$County)
+
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN pop ON df.State = pop.State AND df.County = pop.County")
+
+##remove extra State, County columns
+df <- subset(df, select=-c(21,22))
+
+#verify variables and dimensions
+head(df) 
+dim(df) #3154 x 25
+
+```
+
+With all of our dataframes merged into one master dataframe `df`, we see that we're dealing with 3154 observations x 25 variables. The variables are listed above and we get an idea of their value ranges and such from a quick glance but we can glean much more via EDA.
+
+### EDA
+
+```{r}
+#baseline EDA: glimpse() and summary()
+glimpse(df)
+summary(df)
+```
+
+From the above output we see that we're dealing with 2 categorical variables, 23 numeric variables, and a significant NA count for numerous variables. We'll deal with NA values later and define our variables as:
+
+* `State`
+* `County`
+* `health_score`
+* `Hvy`
+* `HvyPctChg`
+* `Bng`
+* `BngPctChg`
+* `Mortality`
+* `MortalityChg`
+* `LTHighSchool`
+* `HighSchool`
+* `SomeCollege`
+* `College`
+* `EQI`
+* `FoodInsecurity`
+* `Sun`
+* `Unemployment`
+* `UnemploymentChg`
+* `Poverty`
+* `Income`
+* `Population`
+* `Births`
+* `Deaths`
+* `NetMig`
+* `PopChg`
+
+The categorical variables are our states and counties and not of much use for anything beyond identification. For this reason, our exploratory data analysis (EDA) focuses on the numeric variables.
+
+As a next step, we explore their numeric distributions:
+
+```{r}
+#drop NAs from consideration
+dim(df)
+df <- drop_na(df)
+dim(df) #dropped 150 observations
+
+#skimr, inspectdf
+inspectdf::inspect_num(df) %>%
+ show_plot()
+#fig + theme(text = element_text(size=16))
+#fig
+
+#Histograms for all variables
+df %>%
+    keep(is.numeric) %>%
+    gather() %>% 
+    ggplot(aes(value)) +
+        facet_wrap(~ key, scales = "free", ncol=4) +
+        geom_histogram(bins=90,color="darkblue", fill="lightblue")
+
+```
+
+We're dealed with varied distributions based on the variable:
+
+* **Right skewed**:
+* **Left skewed**:
+* **Normal**:
+
+We also see that our scales are quite varied, which for generalized linear regression models can present a problem and so normalization will have to be accounted for when we prepare our data.
+
+```{r}
+#boxplot vs. target
+
+names <- df %>% select_if(is.numeric)
+int_names <- names(names)
+
+for (i in int_names) {
+  assign(paste0("var_",i), ggplot(df, aes_string(x = df$health_score, y = i)) + 
+          geom_boxplot(color = 'steelblue', 
+                       outlier.color = 'firebrick', 
+                       outlier.alpha = 0.35) +
+          #scale_y_continuous(labels = comma) +
+          labs(title = paste0(i,' vs target'), y = i, x= 'target') +
+          theme_minimal() + 
+          theme(
+            plot.title = element_text(hjust = 0.45),
+            panel.grid.major.y =  element_line(color = "grey", linetype = "dashed"),
+            panel.grid.major.x = element_blank(),
+            panel.grid.minor.y = element_blank(),
+            panel.grid.minor.x = element_blank(),
+            axis.ticks.x = element_line(color = "grey"),
+            text = element_text(size=16)
+          ))
+}
+gridExtra::grid.arrange(var_Births, var_Bng, var_BngPctChg, var_College, var_Deaths, var_EQI, var_FoodInsecurity, var_HighSchool, var_Hvy, var_HvyPctChg, var_Income, var_LTHighSchool, var_Mortality, var_MortalityChg, var_NetMig, var_PopChg, var_Population, var_Poverty, var_SomeCollege, var_Sun, var_Unemployment, var_UnemploymentChg, nrow=4)
+
+```
+
+
+
+```{r}
+#pairs plot and correlation matrix
+##Pairs plot
+pairs(df %>% select_if(is.numeric))
+
+##Correlation matrix
+numeric_values <- df %>% select_if(is.numeric)
+df_cor <- cor(numeric_values)
+corrplot.mixed(df_cor, tl.col = 'black', tl.pos = 'lt')
+```
+
+LEFT OFF HERE
+
+### DATA PREP
+
+```{r}
+#TBD: address NAs, multicollinearity, outliers
+```
+
+### MODEL BUILDING
+
+```{r}
+#Baseline model (model 1)
+df_base <- subset(df, select=-c(1,2)) #categorical columns
+model_1 <- lm(health_score ~., data = df_base)
+summary(model_1) #R^2 = 0.6725, vars = 23
+
+#AIC optimized model (model 2)
+stepAIC(model_1)
+model_2 <- lm(formula = health_score ~ Hvy + HvyPctChg + Bng + BngPctChg + 
+    Mortality + HighSchool + SomeCollege + College + EQI + FoodInsecurity + 
+    Sun + Unemployment + UnemploymentChg + Poverty + Population + 
+    Births + Deaths + NetMig, data = df_base)
+summary(model_2) #R^2 = 0.672, vars = 18
+
+```
