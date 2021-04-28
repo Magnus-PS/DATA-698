@@ -31,9 +31,7 @@ pre {
 ```
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, warning = F, message = F, eval = T) 
-#knitr::opts_chunk$set(fig.width=12, fig.height=8)
-
+#Import libraries
 library(tidyverse)
 library(dplyr)
 library(readr)
@@ -52,6 +50,7 @@ library(MASS)
 
 options(scipen = 9)
 set.seed(123)
+
 ```
 
 ## Abstract
@@ -97,6 +96,8 @@ Our dependent variable is built upon these sub-variables. The above notes provid
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
 
+## --- Dependent Variable Creation --- ##
+
 #Read in life expectancy data, convert to tibble, and select pertinent columns:
 longevity <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/IHME_LifeExpectancy.csv")
 life_table <- as_tibble(longevity)
@@ -111,10 +112,10 @@ obesity_table <- obesity_table %>% dplyr::select(1:2,5:6,9:10) %>% na.omit()
 activity <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/IHME_PhysicalActivity.csv")
 act_table <- as_tibble(activity)
 act_table <- act_table %>% dplyr::select(1:2,5:6,9:10) %>% na.omit()
+
 ```
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
-
 ###LIFE EXPECTANCY DATA: exploration, normalization, and compilation
 
 #Explore life expectancy data at a county level:
@@ -159,14 +160,14 @@ n_life = (life-min(life))/(max(life)-min(life))
 #par(mfrow=c(1,2))
 #hist(life, breaks=10, xlab="Score", col="lightblue", main="Longevity metric")
 hist(n_life, breaks=10, xlab="Normalized Score", col="lightblue", main="Longevity metric")
-
 summary(n_life) #slight left skew
+
 ```
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
-
 ###OBESITY DATA: exploration, normalization, and compilation
 
+#Explore obesity data at a county level:
 glimpse(obesity_table)
 summary(obesity_table)
 
@@ -207,8 +208,8 @@ n_fat = (fat-min(fat))/(max(fat)-min(fat))
 #par(mfrow=c(1,2))
 #hist(fat, breaks=10, xlab="Score", col="lightblue", main="Obesity metric")
 hist(n_fat, breaks=10, xlab="Normalized Score", col="lightblue", main="Obesity metric")
-
 summary(n_fat) #right skewed
+
 ```
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
@@ -276,6 +277,7 @@ $$
 The result was normalized, bringing our cycle of thrice normalizing and twice congregating to a close, with a dependent variable on a 0 to 1 scale:
 
 ```{r, eval = TRUE, echo = FALSE}
+
 ###DEPENDENT VARIABLE CREATION: sum, normalize, and plot
 
 #Add normalized variables together
@@ -332,9 +334,24 @@ With our health metric created and a brief investigation into the top 10 healthi
 
 ### Independent Variable Preprocessing
 
-Transition write up - LEFT OFF HERE
+We sought county-level data where the counties of the United States would form the basis of our observations and variables could include numerous standard and non-standard health-related metrics:
+
+* `Alcohol Consumption` sourced from [IHME](http://ghdx.healthdata.org/record/ihme-data/united-states-alcohol-use-prevalence-county-2002-2012).
+* `Heart Disease` sourced from the [IHME](http://ghdx.healthdata.org/record/ihme-data/united-states-cardiovascular-disease-mortality-rates-county-1980-2014)
+* `Education`, `Unemployment`, and `Population` sourced from the [USDA](https://www.ers.usda.gov/data-products/county-level-data-sets/download-data/).
+* `Environmental Quality Index` sourced from the [EPA](https://edg.epa.gov/EPADataCommons/public/ORD/CPHEA/EQI_2006_2010/).
+* `Food Insecurity` sourced **by request** from [Feeding America](https://www.feedingamerica.org/research/map-the-meal-gap/by-county).
+* `Sunlight` sourced from [CDC Wonder](https://wonder.cdc.gov/controller/datarequest/D80;jsessionid=097497410B08E44FD89ECC2AB08F?stage=results&action=sort&direction=MEASURE_DESCEND&measure=D80.M1).
+* `Poverty` and `MedianIncome` sourced from the [US Census Bureau](https://www.census.gov/data/datasets/2019/demo/saipe/2019-state-and-county.html).
+
+While the IHME is an independent global health research center associated with the University of Washington and Feeding America is one of the largest nonprofit organizations in the United States, every other data source is connected to the United States government. **The reputability and dependability of the source / institution motivated the election of these sources. **
+
+Datasets were downloaded from their respective platforms, simplified to a .csv-compatible form (*obviously* impertinent variables and header rows were dropped), uploaded to Github and then read in via R's built-in **read_csv()** function. This operation was completed (9) times because the majority of our variables were listed in separate sets.
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+
+## --- Independent Variable Preprocessing --- ##
+
 #Read in alcohol data, convert to tibble, and drop impertinent observation:
 alcohol <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/AlcoholConsumption.csv")
 alcohol <- as_tibble(alcohol)
@@ -476,65 +493,287 @@ food$FoodInsecurity = as.double(gsub("[\\%,]", "", food$FoodInsecurity))
 
 ```
 
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in sun data and convert to tibble:
+sun <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/Sunlight.csv")
+sun <- as_tibble(sun)
+#dim(sun) #3161 x 3
+
+#rename column
+sun <- sun %>% rename(Sun = `Avg Daily Sunlight`)
+
+#drop excess verbage from County column
+sun$County <- removeWords(sun$County, stopwords)
+sun$County <- gsub("(.*),.*", "\\1", sun$County) #remove everything after comma
+
+#head(sun) #verify
+
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in une ployment data and convert to tibble:
+unemp <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/Unemployment.csv")
+unemp <- as_tibble(unemp)
+unemp <- unemp[-1,] #drop State = National
+unemp <- subset(unemp, select=-c(3)) #drop 2016
+
+unemp$State <- state.name[match(unemp$State, state.abb)] #convert state abbreviation to name
+unemp <- unemp[unemp$area_name != unemp$State,] #drop state observations from Area name column
+
+unemp <- unemp %>% rename(
+    County = area_name,
+    Unemployment = Unemployment_rate_2019,
+    UnemploymentChg = `Unemployment_chg_2016-2019`) #rename columns
+
+unemp$County <- removeWords(unemp$County, stopwords) #drop excess verbage from County column
+unemp$County <- gsub("(.*),.*", "\\1", unemp$County) #remove everything after comma
+
+#dim(unemp) #3274 - 3224 = 50 dropped
+#head(unemp) #verify
+
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in wealth data and convert to tibble:
+wealth <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/Wealth.csv")
+wealth <- as_tibble(wealth)
+wealth <- wealth[-1,] #drop State = National
+#dim(wealth) #3193 x 4
+
+wealth$State <- state.name[match(wealth$State, state.abb)] #convert state abbreviation to name
+wealth <- wealth[wealth$County != wealth$State,] #drop state observations from Area name column
+#dim(wealth) #3193 - 3143 = 50 observations dropped
+
+#convert columns to proper type
+wealth$PovertyRate <- as.double(wealth$PovertyRate)
+wealth$MedianHouseholdIncome <- as.numeric(gsub(",","",wealth$MedianHouseholdIncome))
+
+#rename columns
+wealth <- wealth %>% rename(
+    Poverty = PovertyRate,
+    Income = MedianHouseholdIncome) #rename columns
+
+wealth$County <- removeWords(wealth$County, stopwords) #drop excess verbage from County column
+
+#head(wealth)
+
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in population data and convert to tibble:
+pop <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/population.csv")
+pop <- as_tibble(pop)
+
+# rename columns
+pop <- pop %>% rename(
+    State = STNAME,
+    County = CTYNAME,
+    Pop_2010 = CENSUS2010POP,
+    Population = POPESTIMATE2019,
+    Births = BIRTHS2019,
+    Deaths = DEATHS2019,
+    NetMig = NETMIG2019) #rename columns
+
+#add population change variable
+pop$PopChg <- pop$Population - pop$Pop_2010
+
+pop <- subset(pop, select=-c(3)) #drop 2010
+
+#dim(pop) #3193 x 7
+pop <- pop[pop$County != pop$State,] #drop state observations from Area name column
+#dim(pop) #3193 - 3141 = 52 observations dropped
+
+pop$County[1802] <- "Dona Ana County" #invalid UTF-8
+pop$County <- removeWords(pop$County, stopwords) #drop excess verbage from County column
+
+#head(pop)
+
+```
+
+Bringing each of our sources to a consistent format was of the utmost importance for us to merge dataframes and (later) explore our data.
+
+In order to do so:
+
+* impertinent variables and observations were dropped,
+* where `State` names were abbreviated they were converted to the full name,
+* excess verbage was dropped from our `County` variable, 
+* percent change variables were added (where applicable),
+* excess characters were dropped from observations (ie. "%" from percent change variables),
+* variables were converted to the proper type (ie. numeric variable's listed as character type),
+* the general consistency of variable names, type, and format was established, and
+* all dataframes were merged based on matching `State` *and* `County` observations.
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Merge df's
+
+#1. merge health score and alcohol df's
+##Trim white space
+alcohol$County <- trimws(alcohol$County)
+starter_df$County <- trimws(starter_df$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM starter_df
+             LEFT JOIN alcohol ON starter_df.State = alcohol.State AND starter_df.County = alcohol.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(4,5))
+
+#2. merge heart to df
+##Trim white space
+heart$County <- trimws(heart$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN heart ON df.State = heart.State AND df.County = heart.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(8,9))
+
+#3. merge education to df
+##Trim white space
+education$County <- trimws(education$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN education ON df.State = education.State AND df.County = education.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(10,11))
+
+#4. merge eqi to df
+##Trim white space
+eqi$County <- trimws(eqi$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN eqi ON df.State = eqi.State AND df.County = eqi.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(14,15))
+
+#5. merge food to df
+##Trim white space
+food$County <- trimws(food$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN food ON df.State = food.State AND df.County = food.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(15,16))
+
+#6. merge sun to df
+##Trim white space
+sun$County <- trimws(sun$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN sun ON df.State = sun.State AND df.County = sun.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(16,17))
+
+#7. merge unemp to df
+##Trim white space
+unemp$County <- trimws(unemp$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN unemp ON df.State = unemp.State AND df.County = unemp.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(17,18))
+
+#8. merge wealth to df
+##Trim white space
+wealth$County <- trimws(wealth$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN wealth ON df.State = wealth.State AND df.County = wealth.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(19,20))
+
+#9. merge pop to df
+##Trim white space
+pop$County <- trimws(pop$County)
+##SQL join
+df <- sqldf("SELECT *
+             FROM df
+             LEFT JOIN pop ON df.State = pop.State AND df.County = pop.County")
+##remove extra State, County columns
+df <- subset(df, select=-c(21,22))
+
+#verify variables and dimensions
+head(df) 
+dim(df) #3154 x 25
+
+```
+
+The result of our merging all dataframes / variables into one master is a 3154 observation x 25 variable dataframe `df`. We'll explore the resulting data frame in the next section to see what insight we might glean to better inform our data preparation and model-building.
+
+
 ## Data Exploration & Preparation
+
+The goal of exploratory data analysis (or EDA for short) is to really grasp and understand the data at hand.
+
+For our approach, we first get to know the structure and value ranges, we then look at the distributions of our features, visualize the relationship between our numeric variables and the target variable, visualize the relationship our numeric variables have with one another, and then build our “baseline” multi-regression model with the aim of verifying multicollinearity via vif() function. After this point, we should have enough insight to prepare our data and then build our model.
+
+To start, we utilize the built-in glimpse() and summary() methods to gain insight into the dimensions, variable characteristics, and value range for our training dataset:
 
 ```{r}
 
 #baseline EDA: glimpse() and summary()
-# glimpse(df)
-# summary(df)
+glimpse(df)
+#summary(df)
 
 ```
 
-From the above output we see that we're dealing with 2 categorical variables, 23 numeric variables, and a significant NA count for numerous variables. We'll deal with NA values later and define our variables as:
+We're dealing with 2 categorical variables, 23 numeric variables, significant NA counts for numerous variables, and quite a difference in the magnitude of values based on the variables. We can deal with NA values and normalization (later) while preparing our data.
 
-* `State`: State identifier.
-* `County`: County identifier.
-* `health_score`: quantitative, dependent variable that provides a measure of 'healthy lifestyle' as a function of longevity, obesity, and physical activity.
-* `Hvy`: quantitative, independent variable representative of percent of population that drink heavily (how many drinks)
-* `HvyPctChg`
-* `Bng`
-* `BngPctChg`
-* `Mortality`
-* `MortalityChg`
-* `LTHighSchool`
-* `HighSchool`
-* `SomeCollege`
-* `College`
-* `EQI`
-* `FoodInsecurity`
-* `Sun`
-* `Unemployment`
-* `UnemploymentChg`
-* `Poverty`
-* `Income`
-* `Population`
-* `Births`
-* `Deaths`
-* `NetMig`
-* `PopChg`
+Our categorical variables are `State`, our state identifier and `County`, our county identifier. These variables are not of much use for anything beyond identification and may be excluded from EDA and model-building.
 
-The categorical variables are our states and counties and not of much use for anything beyond identification. For this reason, our exploratory data analysis (EDA) focuses on the numeric variables.
+Our dependent variable `health_score` is quantitative and provides a measure of 'healthy lifestyle' as a function of longevity, obesity, and physical activity. This will be our "target" variable, the one against which we'll measure the impact of our independent variables.
 
-As a next step, we explore their numeric distributions:
+As for our quantitative, independent variables:
+
+* `Hvy`: % of population that drink heavily. *"Heavy" drinking is defined as the consumption, on average, of more than one drink per day for women or two drinks per day for men in the past 30 days.*
+* `HvyPctChg`: % change in heavy drinking from 2005 to 2009.
+* `Bng`: % of population that binge drink. *"Binge" drinking is defined as the consumption of more than four drinks for women or five drinks for men on a single occasion at least once in the past 30 days.*
+* `BngPctChg`: % change in binge drinking from 2005 to 2009.
+* `Mortality`: mortality rate in 2014 as a result of heart disease.
+* `MortalityChg`: % change in mortality rate from 2005 to 2014 as a result of heart disease.
+* `LTHighSchool`: % of population educated less than high school from 2015-2019.
+* `HighSchool`: % of population educated at a high school level (and no further) from 2015-2019.
+* `SomeCollege`: % of population who received some college education from 2015-2019.
+* `College`: % of population who completed at least a Bachelor's level education from 2015-2019.
+* `EQI`: Environmental Quality Index.
+* `FoodInsecurity`: % of population whose food intake was disrupted by lack of resources in 2018.
+* `Sun`: average daily sunlight (KJ/m^2) in 2011.
+* `Unemployment`: rate of unemployment in 2019.
+* `UnemploymentChg`: change in unemployment rate from 2015 to 2019.
+* `Poverty`: rate of poverty in 2019.
+* `Income`: median household income in 2019.
+* `Population`: county-level population for 2019.
+* `Births`: county-level births for 2019.
+* `Deaths`: county-level deaths for 2019.
+* `NetMig`: county-level net migration for 2019.
+* `PopChg`: county-level rate of population change from 2010 to 2019.
+
+As a next step, we drop NA values from consideration and explore numeric distributions:
+
+LEFT OFF HERE
 
 ```{r}
 
 #drop NAs from consideration
-# df <- drop_na(df)
-# dim(df) #3154 - 3004 = 150 dropped observations
-# 
-# #skimr, inspectdf - no visible graphic ... 
-# #inspectdf::inspect_num(df) %>%
-# # show_plot()
-# 
+df <- drop_na(df)
+dim(df) #3154 - 3004 = 150 dropped observations
+
+#skimr, inspectdf - output is too small
+#inspectdf::inspect_num(df) %>%
+#  show_plot()
+
 # #Histograms for all variables
-# df %>%
-#     keep(is.numeric) %>%
-#     gather() %>% 
-#     ggplot(aes(value)) +
-#         facet_wrap(~ key, scales = "free", ncol=4) +
-#         geom_histogram(bins=90,color="darkblue", fill="lightblue")
+df %>%
+    keep(is.numeric) %>%
+    gather() %>%
+    ggplot(aes(value)) +
+        facet_wrap(~ key, scales = "free", ncol=4) +
+        geom_histogram(bins=90,color="darkblue", fill="lightblue")
 
 ```
 
