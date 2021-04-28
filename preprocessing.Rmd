@@ -335,8 +335,8 @@ lifestyle <- n_life - n_fat + n_active
 normalized_lifestyle = (lifestyle-min(lifestyle))/(max(lifestyle)-min(lifestyle))
 
 #Histogram of original vs. normalized data
-par(mfrow=c(1,2))
-hist(lifestyle, breaks=10, xlab="Score", col="lightblue", main="Health metric")
+#par(mfrow=c(1,2))
+#hist(lifestyle, breaks=10, xlab="Score", col="lightblue", main="Health metric")
 hist(normalized_lifestyle, breaks=10, xlab="Normalized Score", col="lightblue", main="Health metric")
 
 summary(normalized_lifestyle)
@@ -416,7 +416,7 @@ For the **Alcohol** dataset we end up with a 3127 observation x 6 variable data 
 ## Cardiovascular Disease
 
 ```{r}
-#Read in education data, convert to tibble, and drop impertinent observation:
+#Read in heart data, convert to tibble, and drop impertinent observation:
 heart <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/CardiovascularDisease.csv")
 heart <- as_tibble(heart)
 heart <- subset(heart, select = -c(`Mortality Rate, 2010*`)) #drop 2010

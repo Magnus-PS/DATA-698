@@ -32,7 +32,7 @@ pre {
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = F, warning = F, message = F, eval = T) 
-knitr::opts_chunk$set(fig.width=12, fig.height=8)
+#knitr::opts_chunk$set(fig.width=12, fig.height=8)
 
 library(tidyverse)
 library(dplyr)
@@ -74,9 +74,10 @@ To be amended ...
 * Data Exploration & Preparation
 * Multivariate Regression Analysis
 
-## Experimentation & Results
 
-### Data Gathering & Preprocessing
+## Data Gathering & Preprocessing
+
+### Dependent Variable Creation
 
 In order to create our dependent 'health score' variable, I first familiarized myself with the data at hand. 
 
@@ -85,6 +86,14 @@ Life expectancy, obesity, and physical activity data were downloaded from the [I
 * For **life expectancy data** we read in: `Male life expectancy, 2010 (years)`, `Female life expectancy, 2010 (years)`, `Difference in male life expectancy, 1985-2010 (years)`, and	`Difference in female life expectancy, 1985-2010 (years)`.
 * For **obesity data** we read in: `Male obesity prevalence, 2009 (%)`, `Female obesity  prevalence, 2009 (%)`, `Difference in male obesity prevalence, 2001-2009 (percentage points)`, and `Difference in female obesity prevalence, 2001-2009 (percentage points)`.
 * For **physical activity data** we read in: `Male sufficient physical activity  prevalence, 2009 (%)`, `Female sufficient physical activity  prevalence, 2009 (%)`, `Difference in male sufficient physical activity prevalence, 2001-2009 (percentage points)`, and `Difference in female sufficient physical activity prevalence, 2001-2009 (percentage points)`.
+
+For sake of conciseness, the majority of exploratory details and plots for our dependent variable's creation have been remitted (although the code is available in the Appendix). Prior to moving on though, it is worth noting a few points that were observed prior to the normalization and congregation of our sub-variables:
+
+* With regard to **longevity**: on average, males live to be ~75 years old while females live to be ~80 years old. Thus, females live ~5yrs more than males on average. On average, male life expectancy increased by ~4 years while female life expectancy increased by ~1.5 years. Thus, male life expectancy increased at a greater rate than female life expectancy from 1985-2010.
+* With regard to **obesity**: on average, 38% of females were obese whereas 36% of males were. Thus, females have a *slightly* higher incidence of obesity than males. On average, the male obesity rate increased by ~7.2% while the rate of female obesity increased by ~6.7%. Thus, males got fatter at a greater rate than females from 2001 to 2009.
+* With regard to **physical activity**: on average, 55% of males vs. 48.7% of females received sufficient physical activity in 2009. Thus, males reported a higher level of physical activity. On average, males had a 1.9% increase in physical activity from 2001 to 2009 whereas females reported a 4.7% increase over the same period. Thus, females increased their activity levels at a greater rate than males from 2001 to 2009.
+
+Our dependent variable is built upon these sub-variables. The above notes provide context regarding the variable upon which our regression model is to be fastened.
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
 
@@ -102,6 +111,9 @@ obesity_table <- obesity_table %>% dplyr::select(1:2,5:6,9:10) %>% na.omit()
 activity <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/IHME_PhysicalActivity.csv")
 act_table <- as_tibble(activity)
 act_table <- act_table %>% dplyr::select(1:2,5:6,9:10) %>% na.omit()
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
 
 ###LIFE EXPECTANCY DATA: exploration, normalization, and compilation
 
@@ -143,16 +155,111 @@ life <- n_m1 + n_dm1 + n_f1 + n_df1
 n_life = (life-min(life))/(max(life)-min(life))
 #head(n_life)
 
-# Histogram of original vs. normalized data
+#Histogram of original vs. normalized data
 #par(mfrow=c(1,2))
 #hist(life, breaks=10, xlab="Score", col="lightblue", main="Longevity metric")
 hist(n_life, breaks=10, xlab="Normalized Score", col="lightblue", main="Longevity metric")
 
 summary(n_life) #slight left skew
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
+
+###OBESITY DATA: exploration, normalization, and compilation
+
+glimpse(obesity_table)
+summary(obesity_table)
+
+#Extract variables of interest
+m2 <- obesity_table$`Male obesity prevalence, 2009 (%)` 
+f2 <- obesity_table$`Female obesity  prevalence, 2009 (%)` 
+dm2 <- obesity_table$`Difference in male obesity prevalence, 2001-2009 (percentage points)` 
+df2 <- obesity_table$`Difference in female obesity prevalence, 2001-2009 (percentage points)`
+
+#Normalize
+n_m2 = (m2-min(m2))/(max(m2)-min(m2))
+n_f2 = (f2-min(f2))/(max(f2)-min(f2))
+n_dm2 = (dm2-min(dm2))/(max(dm2)-min(dm2))
+n_df2 = (df2-min(df2))/(max(df2)-min(df2))
+
+#Histogram of original vs. normalized data
+par(mfrow=c(2,2))
+hist(m2, breaks=10, xlab="Obesity rate (%)", col="lightblue", main="Male obesity prevalence, 2009")
+hist(n_m2, breaks=10, xlab="Normalized obesity rate (%)", col="lightblue", main="Male obesity prevalence, 2009")
+hist(f2, breaks=10, xlab="Obesity rate (%)", col="lightblue", main="Female obesity prevalence, 2009")
+hist(n_f2, breaks=10, xlab="Normalized obesity rate (%)", col="lightblue", main="Female obesity prevalence, 2009")
+
+par(mfrow=c(2,2))
+hist(dm2, breaks=10, xlab="Obesity rate (%)", col="lightblue", main="Male obesity increase, 2001-2009")
+hist(n_dm2, breaks=10, xlab="Normalized obesity rate (%)", col="lightblue", main="Male obesity increase, 2001-2009")
+hist(df2, breaks=10, xlab="Obesity rate (%)", col="lightblue", main="Female obesity increase, 2001-2009")
+hist(n_df2, breaks=10, xlab="Normalized obesity rate (%)", col="lightblue", main="Female obesity increase, 2001-2009")
+
+#Add normalized variables together
+fat <- n_m2 + n_dm2 + n_f2 + n_df2
+
+#Normalize activity to 0-1 range
+n_fat = (fat-min(fat))/(max(fat)-min(fat))
+
+#head(n_fat)
+
+# Histogram of original vs. normalized data
+#par(mfrow=c(1,2))
+#hist(fat, breaks=10, xlab="Score", col="lightblue", main="Obesity metric")
+hist(n_fat, breaks=10, xlab="Normalized Score", col="lightblue", main="Obesity metric")
+
+summary(n_fat) #right skewed
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include = FALSE}
+###PHYSICAL ACTIVITY DATA: exploration, normalization, and compilation
+
+glimpse(act_table)
+summary(act_table)
+
+#Explore and normalize male physical activity data
+m3 <- act_table$`Male sufficient physical activity  prevalence, 2009 (%)`
+f3 <- act_table$`Female sufficient physical activity  prevalence, 2009 (%)`
+dm3 <- act_table$`Difference in male sufficient physical activity prevalence, 2001-2009 (percentage points)`  
+df3 <- act_table$`Difference in female sufficient physical activity prevalence, 2001-2009 (percentage points)` 
+
+#Normalized Data
+n_m3 = (m3-min(m3))/(max(m3)-min(m3))
+n_f3 = (f3-min(f3))/(max(f3)-min(f3))
+n_dm3 = (dm3-min(dm3))/(max(dm3)-min(dm3))
+n_df3 = (df3-min(df3))/(max(df3)-min(df3))
+
+#Histogram of original vs. normalized data
+par(mfrow=c(2,2))
+hist(m3, breaks=10, xlab="Physical activity rate (%)", col="lightblue", main="Male activity prevalence, 2009")
+hist(n_m3, breaks=10, xlab="Normalized physical activity rate (%)", col="lightblue", main="Male activity prevalence, 2009")
+hist(f3, breaks=10, xlab="Physical activity rate (%)", col="lightblue", main="Female activity prevalence, 2009")
+hist(n_f3, breaks=10, xlab="Normalized obesity rate (%)", col="lightblue", main="Female activity prevalence, 2009")
+
+par(mfrow=c(2,2))
+hist(dm3, breaks=10, xlab="Physical activity rate (%)", col="lightblue", main="Male activity difference, 2001-2009")
+hist(n_dm3, breaks=10, xlab="Normalized physical activity rate (%)", col="lightblue", main="Male activity difference, 2001-2009")
+hist(df3, breaks=10, xlab="Physical activity rate (%)", col="lightblue", main="Female activity difference, 2009")
+hist(n_df3, breaks=10, xlab="Normalized obesity rate (%)", col="lightblue", main="Female activity difference, 2009")
+
+#Add normalized variables together
+active <- n_m3 + n_dm3 + n_f3 + n_df3
+
+#Normalize activity to 0-1 range
+n_active = (active-min(active))/(max(active)-min(active))
+
+#head(n_active)
+
+# Histogram of original vs. normalized data
+#par(mfrow=c(1,2))
+#hist(active, breaks=10, xlab="Score", col="lightblue", main="Physical activity metric")
+hist(n_active, breaks=10, xlab="Normalized Score", col="lightblue", main="Physical activity metric")
+
+summary(n_active) #slight right skew
 
 ```
 
-For each over-arching variable (ie. longevity), we read in the 4 variables listed above, normalized, and then compiled the over-arching variable as a summation of the normalized sub-variables.
+For each over-arching variable (life expectancy, obesity, or physical activity), we read in the 4 corresponding variables listed above, normalize, compile the over-arching variable as a summation of the normalized sub-variables and then normalize the result. 
 
 The normalization of sub-variables and (later) over-arching variables was done in order to bring all data to a 0-to-1 scale via the following equation:
 
@@ -166,9 +273,210 @@ $$
 Lifestyle = Normalized.Life - Normalized.Obesity + Normalized.Activity
 $$
 
-LEFT OFF HERE: left off copying over Obesity code (preprocessing line 158)
+The result was normalized, bringing our cycle of thrice normalizing and twice congregating to a close, with a dependent variable on a 0 to 1 scale:
 
-### Data Exploration & Preparation
+```{r, eval = TRUE, echo = FALSE}
+###DEPENDENT VARIABLE CREATION: sum, normalize, and plot
+
+#Add normalized variables together
+lifestyle <- n_life - n_fat + n_active
+
+#Normalize health to 0-1 range
+normalized_lifestyle = (lifestyle-min(lifestyle))/(max(lifestyle)-min(lifestyle))
+
+#Histogram of original vs. normalized data
+#par(mfrow=c(1,2))
+#hist(lifestyle, breaks=10, xlab="Score", col="lightblue", main="Health metric")
+hist(normalized_lifestyle, breaks=10, xlab="Normalized Score", col="lightblue", main="Health metric")
+
+summary(normalized_lifestyle)
+#head(normalized_lifestyle)
+
+```
+
+For our 'healthy lifestyle' metric, we observe a normal distribution whose peak is centered between 0.4 and 0.5. When we consult the summary statistics, we verify a mean of 0.4639 and a median of 0.4642. Confirming that our dependent variable is slightly left skewed.
+
+### Top 10 Healthiest Counties
+
+As a next step, we utilize our health score metric to filter through county data for the top 10 healthiest counties:
+
+```{r, eval = TRUE, echo = FALSE}
+#create new df with state | county | health score
+starter_df <- life_table %>% 
+    dplyr::select(1:2)
+
+starter_df$health_score <- normalized_lifestyle
+healthiest_counties <- filter(starter_df, `health_score` > 0.895) #top 10
+healthiest_counties <- healthiest_counties[order(-healthiest_counties$`health_score`),] #descending order
+
+#head(starter_df)
+#nrow(healthiest_counties) #10
+healthiest_counties %>%
+  kbl() %>%
+  kable_minimal()
+
+```
+
+
+From the above list, we note (6) Colorado, (2) California, (1) Utah and (1) Wyoming county. From this, we extend a few *assumptions* regarding factors that might come into play for the healthiest counties: 
+
+* sunshine, 
+* median income,
+* sparser population clusters (aside from San Fransisco), and
+* friendliness to an active, healthy lifestyle.
+
+We note these factors with interest and plan to revisit our assumptions later. We can observe the variables that are included in our optimal multi regression model as well as those that appear to carry the most predictive impact (ie. largest coefficients).
+
+With our health metric created and a brief investigation into the top 10 healthiest counties, we move on to reading in, exploring, and preparing our independent variables.
+
+
+### Independent Variable Preprocessing
+
+Transition write up - LEFT OFF HERE
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in alcohol data, convert to tibble, and drop impertinent observation:
+alcohol <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/AlcoholConsumption.csv")
+alcohol <- as_tibble(alcohol)
+alcohol <- alcohol[-1,] #drop State = National
+#dim(alcohol) #3178 x 6
+
+alcohol <- alcohol[alcohol$Location != alcohol$State,] #drop state observations from Location column
+#dim(alcohol) #3178 - 3127 = 51 observations dropped
+
+#rename columns
+alcohol <- alcohol %>% rename( 
+    County = Location,
+    Hvy = Hvy_2012,
+    Bng = Binge_2012,
+    HvyPctChg = `HvyPctChg_2005-2012`,
+    BngPctChg = `BingePctChg_2005-2012`)
+
+#drop excess verbage from County column
+stopwords <- c("and", "Area", "Borough", "Census", "City", "County", "Division", "Municipality", "Parish")
+alcohol$County <- removeWords(alcohol$County, stopwords)
+#head(alcohol)
+
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in heart data, convert to tibble, and drop impertinent observation:
+heart <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/CardiovascularDisease.csv")
+heart <- as_tibble(heart)
+heart <- subset(heart, select = -c(`Mortality Rate, 2010*`)) #drop 2010
+heart <- heart[-1,] #drop State = National
+#dim(heart) #3193 x 4
+
+# remove State == Location
+heart <- heart[heart$Location != heart$State,]
+dim(heart) #3193 - 3143 = 50 observations removed
+
+# retitle columns
+heart <- heart %>% rename( 
+    County = Location,
+    Mortality_2005 = `Mortality Rate, 2005*`,
+    Mortality_2014 = `Mortality Rate, 2014*`)
+
+# retain value EXCLUSIVELY for Mortality Rate columns
+heart$Mortality_2005 <- gsub("\\s*\\([^\\)]+\\)","",as.character(heart$Mortality_2005))
+heart$Mortality_2014 <- gsub("\\s*\\([^\\)]+\\)","",as.character(heart$Mortality_2014))
+
+#convert columns to proper type
+heart$Mortality_2005 <- as.double(heart$Mortality_2005)
+heart$Mortality_2014 <- as.double(heart$Mortality_2014)
+
+#drop excess verbage from County column
+heart$County <- removeWords(heart$County, stopwords)
+heart$County <- gsub("(.*),.*", "\\1", heart$County) #remove everything after comma
+
+# add Chg column
+heart$MortalityChg <- heart$Mortality_2014 - heart$Mortality_2005
+
+#finalize format of df
+heart <- subset(heart, select = -c(`Mortality_2005`)) #drop 2005
+heart <- heart %>% rename( Mortality = Mortality_2014)
+
+#head(heart)
+
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in education data, convert to tibble, and drop impertinent observation:
+education <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/Education.csv")
+education <- as_tibble(education)
+education <- education[-1,] #drop State = National
+
+education$State <- state.name[match(education$State, state.abb)] #convert state abbreviation to name
+
+education <- education[education$`Area name` != education$State,] #drop state observations from Area name column
+#dim(education) #3281 - 3233 = 48 observations dropped
+
+#rename columns
+education <- education %>% rename(
+    County = `Area name`,
+    LTHighSchool = `Percent of adults with less than a high school diploma, 2015-19`,
+    HighSchool = `Percent of adults with a high school diploma only, 2015-19`,
+    SomeCollege = `Percent of adults completing some college or associate's degree, 2015-19`,
+    College = `Percent of adults with a bachelor's degree or higher, 2015-19`)
+
+#drop excess verbage from County column
+education$County <- removeWords(education$County, stopwords)
+
+#head(education) #verify
+
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in eqi data and convert to tibble:
+eqi <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/EnvironmentalQualityIndex.csv")
+eqi <- as_tibble(eqi)
+eqi <- subset(eqi, select = -c(3:7)) #drop indices that makeup EQI score
+
+eqi$State <- state.name[match(eqi$State, state.abb)] #convert state abbreviation to name
+
+#rename columns
+eqi <- eqi %>% rename(
+    County = County_Name,
+    EQI = environmental_quality_index)
+
+#drop excess verbage from County column
+eqi$County <- removeWords(eqi$County, stopwords)
+
+#head(eqi) #verify
+#dim(eqi) #3281 x 6
+
+```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+#Read in food insecurity data and convert to tibble:
+food <- read_csv("https://raw.githubusercontent.com/Magnus-PS/DATA-698/data/FoodInsecurity.csv")
+food <- as_tibble(food)
+#head(food)
+
+#drop FIPS
+food <- subset(food, select=-c(FIPS))
+#dim(food) #3142 x 3: no need to drop observations
+
+#convert State to full name
+food$State <- state.name[match(food$State, state.abb)] #convert state abbreviation to name
+
+#rename columns
+food <- food %>% rename(
+    County = `County, State`,
+    FoodInsecurity = `2018 Food Insecurity Rate`)
+
+#remove excess verbage from County
+food$County <- removeWords(food$County, stopwords)
+food$County <- gsub("(.*),.*", "\\1", food$County) #remove everything after comma
+
+#drop % from Food Insecurity and convert to double
+food$FoodInsecurity = as.double(gsub("[\\%,]", "", food$FoodInsecurity))
+
+#head(food) #verify
+
+```
+
+## Data Exploration & Preparation
 
 ```{r}
 
@@ -295,7 +603,7 @@ LEFT OFF HERE
 #normalization
 ```
 
-### Multivariate Regression Analysis
+## Multivariate Regression Analysis
 
 ```{r}
 
