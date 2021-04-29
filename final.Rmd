@@ -51,6 +51,45 @@ library(MASS)
 options(scipen = 9)
 set.seed(123)
 
+#User-defined function
+
+plot_corr_matrix <- function(dataframe, significance_threshold){
+  title <- paste0('Correlation Matrix for significance > ',
+                  significance_threshold)
+  
+  df_cor <- dataframe %>% mutate_if(is.character, as.factor)
+  
+  df_cor <- df_cor %>% mutate_if(is.factor, as.numeric)
+  #run a correlation and drop the insignificant ones
+  corr <- cor(df_cor)
+  #prepare to drop duplicates and correlations of 1     
+  corr[lower.tri(corr,diag=TRUE)] <- NA 
+  #drop perfect correlations
+  corr[corr == 1] <- NA 
+  #turn into a 3-column table
+  corr <- as.data.frame(as.table(corr))
+  #remove the NA values from above 
+  corr <- na.omit(corr) 
+  #select significant values  
+  corr <- subset(corr, abs(Freq) > significance_threshold) 
+  #sort by highest correlation
+  corr <- corr[order(-abs(corr$Freq)),] 
+  #print table
+  # print(corr)
+  #turn corr back into matrix in order to plot with corrplot
+  mtx_corr <- reshape2::acast(corr, Var1~Var2, value.var="Freq")
+  
+  #plot correlations visually
+  corrplot(mtx_corr,
+           title=title,
+           mar=c(0,0,1,0),
+           method='color', 
+           tl.col="black", 
+           na.label= " ",
+           addCoef.col = 'black',
+           number.cex = .9)
+}
+
 ```
 
 ## Abstract
@@ -714,7 +753,7 @@ For our approach, we first get to know the structure and value ranges, we then l
 
 To start, we utilize the built-in glimpse() and summary() methods to gain insight into the dimensions, variable characteristics, and value range for our training dataset:
 
-```{r}
+```{r, echo = F, eval = T}
 
 #baseline EDA: glimpse() and summary()
 glimpse(df)
@@ -763,58 +802,34 @@ LEFT OFF HERE
 df <- drop_na(df)
 dim(df) #3154 - 3004 = 150 dropped observations
 
-#skimr, inspectdf - output is too small
-#inspectdf::inspect_num(df) %>%
-#  show_plot()
+```
 
-# #Histograms for all variables
+```{r, eval = TRUE, echo = FALSE, fig.height = 8, fig.width = 10}
+#Histograms for all variables
 df %>%
     keep(is.numeric) %>%
     gather() %>%
     ggplot(aes(value)) +
-        facet_wrap(~ key, scales = "free", ncol=4) +
-        geom_histogram(bins=90,color="darkblue", fill="lightblue")
+        facet_wrap(~ key, scales = "free", ncol=5) +
+        geom_histogram(bins=20,color="darkblue", fill="lightblue")
 
 ```
 
-We're dealed with varied distributions based on the variable:
-
-* **Right skewed**:
-* **Left skewed**:
-* **Normal**:
+Interpretation.
 
 We also see that our scales are quite varied, which for generalized linear regression models can present a problem and so normalization will have to be accounted for when we prepare our data.
 
-```{r}
+```{r, echo = F, eval = T, fig.height = 8, fig.width = 10}
+#Histograms for all variables
+num_df<- df %>%
+    keep(is.numeric)
 
-#boxplot vs. target
-
-# names <- df %>% select_if(is.numeric)
-# int_names <- names(names)
-# 
-# for (i in int_names) {
-#   assign(paste0("var_",i), ggplot(df, aes_string(x = df$health_score, y = i)) + 
-#           geom_boxplot(color = 'steelblue', 
-#                        outlier.color = 'firebrick', 
-#                        outlier.alpha = 0.35) +
-#           #scale_y_continuous(labels = comma) +
-#           labs(title = paste0(i,' vs target'), y = i, x= 'target') +
-#           theme_minimal() + 
-#           theme(
-#             plot.title = element_text(hjust = 0.45),
-#             panel.grid.major.y =  element_line(color = "grey", linetype = "dashed"),
-#             panel.grid.major.x = element_blank(),
-#             panel.grid.minor.y = element_blank(),
-#             panel.grid.minor.x = element_blank(),
-#             axis.ticks.x = element_line(color = "grey"),
-#             text = element_text(size=16)
-#           ))
-# }
-# gridExtra::grid.arrange(var_Births, var_Bng, var_BngPctChg, var_College, var_Deaths, var_EQI, var_FoodInsecurity, var_HighSchool, var_Hvy, var_HvyPctChg, var_Income, var_LTHighSchool, var_Mortality, var_MortalityChg, var_NetMig, var_PopChg, var_Population, var_Poverty, var_SomeCollege, var_Sun, var_Unemployment, var_UnemploymentChg, nrow=4)
+#Utilize custom-built correlation matrix generation function
+plot_corr_matrix(num_df, 0.5)
 
 ```
 
-Interpretation and transition ...
+Based on the above plot we see that **multicollinearity is a concern**. A concern that we'll have to address via feature exclusion, creation, or transformation.
 
 ```{r}
 
@@ -829,7 +844,6 @@ Interpretation and transition ...
 
 ```
 
-LEFT OFF HERE
 
 ```{r}
 
