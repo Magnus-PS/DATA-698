@@ -52,7 +52,6 @@ options(scipen = 9)
 set.seed(123)
 
 #User-defined function
-
 plot_corr_matrix <- function(dataframe, significance_threshold){
   title <- paste0('Correlation Matrix for significance > ',
                   significance_threshold)
@@ -61,7 +60,7 @@ plot_corr_matrix <- function(dataframe, significance_threshold){
   
   df_cor <- df_cor %>% mutate_if(is.factor, as.numeric)
   #run a correlation and drop the insignificant ones
-  corr <- cor(df_cor)
+  corr <- cor(df_cor, use = 'na.or.complete')
   #prepare to drop duplicates and correlations of 1     
   corr[lower.tri(corr,diag=TRUE)] <- NA 
   #drop perfect correlations
@@ -749,7 +748,7 @@ The result of our merging all dataframes / variables into one master is a 3154 o
 
 The goal of exploratory data analysis (or EDA for short) is to really grasp and understand the data at hand.
 
-For our approach, we first get to know the structure and value ranges, we then look at the distributions of our features, visualize the relationship between our numeric variables and the target variable, visualize the relationship our numeric variables have with one another, and then build our “baseline” multi-regression model with the aim of verifying multicollinearity via vif() function. After this point, we should have enough insight to prepare our data and then build our model.
+For our approach, we first get to know the structure and value ranges, we then look at the distributions of our features, visualize the relationship our variables have with one another and the target variable via correlation matrix, and visit the proportion of missing data vs. correlation with target. After this point, we should have enough insight to prepare our data and then build our model.
 
 To start, we utilize the built-in glimpse() and summary() methods to gain insight into the dimensions, variable characteristics, and value range for our training dataset:
 
@@ -761,13 +760,13 @@ glimpse(df)
 
 ```
 
-We're dealing with 2 categorical variables, 23 numeric variables, significant NA counts for numerous variables, and quite a difference in the magnitude of values based on the variables. We can deal with NA values and normalization (later) while preparing our data.
+For sake of concise, the summary() results have been omitted but from the glimpse() results we observe that we're dealing with 2 categorical variables, 23 numeric variables, significant NA counts for numerous variables, and quite a difference in the magnitude of values based on the variables.
 
-Our categorical variables are `State`, our state identifier and `County`, our county identifier. These variables are not of much use for anything beyond identification and may be excluded from EDA and model-building.
+Our **categorical variables** are `State`, our state identifier and `County`, our county identifier. These variables are not of much use for anything beyond identification and may be excluded from EDA and model-building.
 
-Our dependent variable `health_score` is quantitative and provides a measure of 'healthy lifestyle' as a function of longevity, obesity, and physical activity. This will be our "target" variable, the one against which we'll measure the impact of our independent variables.
+Our **dependent variable** `health_score` is quantitative and provides a measure of 'healthy lifestyle' as a function of longevity, obesity, and physical activity. This will be our "target" variable, the one against which we'll measure the impact of our independent variables.
 
-As for our quantitative, independent variables:
+As for our **quantitative, independent variables**:
 
 * `Hvy`: % of population that drink heavily. *"Heavy" drinking is defined as the consumption, on average, of more than one drink per day for women or two drinks per day for men in the past 30 days.*
 * `HvyPctChg`: % change in heavy drinking from 2005 to 2009.
@@ -792,11 +791,9 @@ As for our quantitative, independent variables:
 * `NetMig`: county-level net migration for 2019.
 * `PopChg`: county-level rate of population change from 2010 to 2019.
 
-As a next step, we drop NA values from consideration and explore numeric distributions:
+As a next step, we drop NA values from consideration (150 observations) and turn our attention to exploring the relationship these variables have with one another and with the target via **correlation matrix**. We consider only variables with a correlation significance > 0.2 in our plot: 
 
-LEFT OFF HERE
-
-```{r}
+```{r, eval = F, echo = F}
 
 #drop NAs from consideration
 df <- drop_na(df)
@@ -804,10 +801,86 @@ dim(df) #3154 - 3004 = 150 dropped observations
 
 ```
 
+```{r, echo = F, eval = T, fig.height = 8, fig.width = 10}
+
+#Select numeric variables
+df_num <- as.data.frame(df[3:25])
+#dim(df_num)
+#head(df_num)
+
+#Utilize custom-built correlation matrix generation function
+plot_corr_matrix(df_num, 0.2)
+
+```
+
+The above plot is "busy", and from that, we may extend that **multicollinearity is a MAJOR concern**. We may eliminate a large portion of the variables we've carried upto this point and proceed with *only* those with strong predictive promise and / or unique value added (ie. `BngPctChg` or `Sun`).
+
+Based on these guidelines, it appears that we should proceed with *at least* `BngPctChg`, `Mortality`, `College`, `FoodInsecurity`, `Unemployment`, `Income`, and `PopChg`. These variables are relatively unique from one another and have a strong correlation with `health_score`.
+
+To clarify we consult a table with the proportion of missing data and correlation with our target variable:
+
+```{r, echo = F, eval = T}
+#Compute proportion of missing data per variable
+v <- colnames(df_num)
+incomplete <- function(x) sum(!complete.cases(x)) / 3004
+Missing_Data <- sapply(df_num[v], incomplete) 
+#head(Missing_Data) #verify
+
+#Compute correlation between each variable and TARGET
+target_corr <- function(x, y) cor(y, x, use = "na.or.complete")
+HealthScore_Corr <- sapply(df_num[v], target_corr, y=df_num$health_score) 
+#head(HealthScore_Corr) #verify
+
+#Bind and output Missing Data and Correlation with Target
+MDHSC <- data.frame(cbind(Missing_Data, HealthScore_Corr))
+MDHSC %>%
+  kbl(caption = "Proportion of Missing Data vs. Correlation with Health Score") %>%
+  kable_minimal()
+
+```
+
+From the Missing_Data column we see that all of our independent variables are missing 2-3% of their data. This may be solved via imputation (KNN or median value).
+
+From the HealthScore_Corr column we see that `Hvy`, `MortalityChg`, `NetMig` have a **weak** correlation with `health_score`. Whereas the remainder of our variables carry a relatively strong (positive or negative) correlation with the target variable and would only be excluded due to multicollinearity.
+
+To address weak target correlation and multicollinearity we consider the exclusion of 13 variables from further consideration:
+
+* `Hvy`, `MortalityChg`, and `NetMig` due to **weak correlation** with the target variable
+* `HvyPctChg` `Bng`, `LTHighSchool`, `HighSchool`, `SomeCollege`, `Unemployment`, `Poverty`, `Population`, `Births`, and `Deaths` due to **multicollinearity**.
+
+Before doing so, we utilize the **Boruta** function for feature ranking and selection as confirmation (included in Appendix). In doing so, `MortalityChg`, `BngPctChg`, `Unemployment`, `HvyPctChg`, and `Population` were identified as the variables with the lowest importance. 
+
+```{r, echo = F, eval = F, fig.height = 8, fig.width = 10}
+#Utilize Boruta for feature ranking and selection
+library(Boruta)
+
+# Perform Boruta search
+boruta_output <- Boruta(health_score ~ ., data=na.omit(df_num), doTrace=0, maxRuns = 1000)
+
+#Get significant variables including tentatives
+boruta_signif <- getSelectedAttributes(boruta_output, withTentative = TRUE)
+#print(boruta_signif)
+
+# Plot variable importance
+plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance")
+
+```
+
+We observe that `Mortality`, `College`, `FoodInsecurity`, `LTHighSchool`, `Sun`, `EQI`, `Income`, `PopChg`, `Bng`, and `UnemploymentChg` appear to be our strongest predictors (with the lowest incidence of multicollinearity).
+
+Based on variable importance, correlation with `health_score` and multicollinearity, we'll proceed through data preparation with just these variables and visit their distributions before proceeding further with our data preparation:
+
+```{r, eval = F, echo = F}
+#Feature selection (address weak target correlation and multicollinearity)
+select_vars <- c('health_score','Mortality','College','FoodInsecurity','LTHighSchool','Sun','EQI','Income','PopChg','Bng','UnemploymentChg')
+select_df <- df_num[select_vars]
+#head(select_df) #verify
+
+```
+
 ```{r, eval = TRUE, echo = FALSE, fig.height = 8, fig.width = 10}
 #Histograms for all variables
-df %>%
-    keep(is.numeric) %>%
+select_df %>%
     gather() %>%
     ggplot(aes(value)) +
         facet_wrap(~ key, scales = "free", ncol=5) +
@@ -815,45 +888,19 @@ df %>%
 
 ```
 
-Interpretation.
+From the histograms above, we note a number of **non-normal** (ie. `PopChg`), **bimodal** (ie. `Sun`), **normal right skewed** (ie. `College`), **normal left skewed** (ie. `EQI`), and relatively **normal** (ie. `Mortality`) distributions. 
 
-We also see that our scales are quite varied, which for generalized linear regression models can present a problem and so normalization will have to be accounted for when we prepare our data.
-
-```{r, echo = F, eval = T, fig.height = 8, fig.width = 10}
-#Histograms for all variables
-num_df<- df %>%
-    keep(is.numeric)
-
-#Utilize custom-built correlation matrix generation function
-plot_corr_matrix(num_df, 0.5)
-
-```
-
-Based on the above plot we see that **multicollinearity is a concern**. A concern that we'll have to address via feature exclusion, creation, or transformation.
+The wide-ranging difference in scales and non-normal distributions may be problematic in applying generalized linear regression models. Normalization may address the scales issue while transformation, outlier removal, or feature creation (ie. converting non-normal variables to dummy "flag" variables) may address the issue of non-normal distributions.
 
 ```{r}
+#Imputation / removal (address NAs)
 
-#pairs plot and correlation matrix
-# ##Pairs plot
-# pairs(df %>% select_if(is.numeric))
-# 
-# ##Correlation matrix
-# numeric_values <- df %>% select_if(is.numeric)
-# df_cor <- cor(numeric_values)
-# corrplot.mixed(df_cor, tl.col = 'black', tl.pos = 'lt')
+#Normalization (address difference in scales)
 
-```
+#Outliers (address observations that hinder predictive prowess)
 
+#Feature creation?
 
-```{r}
-
-#address NAs - DONE
-
-#multicollinearity
-
-#outliers
-
-#normalization
 ```
 
 ## Multivariate Regression Analysis
