@@ -358,7 +358,7 @@ healthiest_counties %>%
 ```
 
 
-From the above list, we note (6) Colorado, (2) California, (1) Utah and (1) Wyoming county. From this, we extend a few *assumptions* regarding factors that might come into play for the healthiest counties: 
+From the above list, we note (6) Colorado, (2) California, (1) Utah and (1) Wyoming county. From this, we extend a few assumptions regarding factors that might come into play for the healthiest counties: 
 
 * sunshine, 
 * median income,
@@ -384,7 +384,7 @@ We sought county-level data where the counties of the United States would form t
 
 While the IHME is an independent global health research center associated with the University of Washington and Feeding America is one of the largest nonprofit organizations in the United States, every other data source is connected to the United States government. **The reputability and dependability of the source / institution motivated the election of these sources. **
 
-Datasets were downloaded from their respective platforms, simplified to a .csv-compatible form (*obviously* impertinent variables and header rows were dropped), uploaded to Github and then read in via R's built-in **read_csv()** function. This operation was completed (9) times because the majority of our variables were listed in separate sets.
+Datasets were downloaded from their respective platforms, simplified to a .csv-compatible form (obviously impertinent variables and header rows were dropped), uploaded to Github and then read in via R's built-in read_csv() function. This operation was completed (9) times because the majority of our variables were listed in separate sets.
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 
@@ -639,7 +639,7 @@ In order to do so:
 * excess characters were dropped from observations (ie. "%" from percent change variables),
 * variables were converted to the proper type (ie. numeric variable's listed as character type),
 * the general consistency of variable names, type, and format was established, and
-* all dataframes were merged based on matching `State` *and* `County` observations.
+* all dataframes were merged based on matching `State` and `County` observations.
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 #Merge df's
@@ -760,9 +760,9 @@ glimpse(df)
 
 ```
 
-For sake of concise, the summary() results have been omitted but from the glimpse() results we observe that we're dealing with 2 categorical variables, 23 numeric variables, significant NA counts for numerous variables, and quite a difference in the magnitude of values based on the variables.
+We're dealing with 3154 observations x 25 variables: 2 categorical variables, 23 numeric variables, significant NA counts for numerous variables, and quite a difference in the magnitude of values based on the variables.
 
-Our **categorical variables** are `State`, our state identifier and `County`, our county identifier. These variables are not of much use for anything beyond identification and may be excluded from EDA and model-building.
+Our **categorical variables** are `State`, our state identifier and `County`, our county identifier. These variables are not of much use for anything beyond identification and may be excluded.
 
 Our **dependent variable** `health_score` is quantitative and provides a measure of 'healthy lifestyle' as a function of longevity, obesity, and physical activity. This will be our "target" variable, the one against which we'll measure the impact of our independent variables.
 
@@ -791,13 +791,13 @@ As for our **quantitative, independent variables**:
 * `NetMig`: county-level net migration for 2019.
 * `PopChg`: county-level rate of population change from 2010 to 2019.
 
-As a next step, we drop NA values from consideration (150 observations) and turn our attention to exploring the relationship these variables have with one another and with the target via **correlation matrix**. We consider only variables with a correlation significance > 0.2 in our plot: 
+As a next step, we drop NA values from consideration (150 observations) and turn our attention to exploring the relationship these variables have with one another and with the target via correlation matrix. We consider only variables with a correlation significance > 0.2 in our plot:
 
-```{r, eval = F, echo = F}
+```{r, eval = T, echo = F}
 
 #drop NAs from consideration
 df <- drop_na(df)
-dim(df) #3154 - 3004 = 150 dropped observations
+#dim(df) #3154 - 3004 = 150 dropped observations
 
 ```
 
@@ -813,13 +813,14 @@ plot_corr_matrix(df_num, 0.2)
 
 ```
 
-The above plot is "busy", and from that, we may extend that **multicollinearity is a MAJOR concern**. We may eliminate a large portion of the variables we've carried upto this point and proceed with *only* those with strong predictive promise and / or unique value added (ie. `BngPctChg` or `Sun`).
+The above plot is "busy", and from that, we may extend that multicollinearity is a concern. We may eliminate a large portion of the variables we've carried upto this point and proceed with only those with strong predictive promise and / or unique value added (ie. `BngPctChg` or `Sun`).
 
-Based on these guidelines, it appears that we should proceed with *at least* `BngPctChg`, `Mortality`, `College`, `FoodInsecurity`, `Unemployment`, `Income`, and `PopChg`. These variables are relatively unique from one another and have a strong correlation with `health_score`.
+Based on these guidelines, it appears that we should proceed with at least `BngPctChg`, `Mortality`, `College`, `FoodInsecurity`, `Unemployment`, `Income`, and `PopChg`. These variables are relatively unique from one another and have a strong correlation with `health_score`.
 
-To clarify we consult a table with the proportion of missing data and correlation with our target variable:
+To clarify we consulted a table (code available in Appendix) with the proportion of missing data and correlation with our target variable. We found that none of our independent variables are missing data, that `Hvy`, `MortalityChg`, `NetMig` have a weak correlation with `health_score`, and that the remainder of our variables carry a relatively strong correlation with the target.
 
-```{r, echo = F, eval = T}
+```{r, echo = F, eval = F}
+
 #Compute proportion of missing data per variable
 v <- colnames(df_num)
 incomplete <- function(x) sum(!complete.cases(x)) / 3004
@@ -839,14 +840,7 @@ MDHSC %>%
 
 ```
 
-From the Missing_Data column we see that all of our independent variables are missing 2-3% of their data. This may be solved via imputation (KNN or median value).
-
-From the HealthScore_Corr column we see that `Hvy`, `MortalityChg`, `NetMig` have a **weak** correlation with `health_score`. Whereas the remainder of our variables carry a relatively strong (positive or negative) correlation with the target variable and would only be excluded due to multicollinearity.
-
-To address weak target correlation and multicollinearity we consider the exclusion of 13 variables from further consideration:
-
-* `Hvy`, `MortalityChg`, and `NetMig` due to **weak correlation** with the target variable
-* `HvyPctChg` `Bng`, `LTHighSchool`, `HighSchool`, `SomeCollege`, `Unemployment`, `Poverty`, `Population`, `Births`, and `Deaths` due to **multicollinearity**.
+To address weak target correlation and multicollinearity we consider the exclusion of 13 variables : `Hvy`, `MortalityChg`, and `NetMig` due to weak correlation with the target variable and `HvyPctChg` `Bng`, `LTHighSchool`, `HighSchool`, `SomeCollege`, `Unemployment`, `Poverty`, `Population`, `Births`, and `Deaths` due to multicollinearity.
 
 Before doing so, we utilize the **Boruta** function for feature ranking and selection as confirmation (included in Appendix). In doing so, `MortalityChg`, `BngPctChg`, `Unemployment`, `HvyPctChg`, and `Population` were identified as the variables with the lowest importance. 
 
@@ -866,24 +860,23 @@ plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance")
 
 ```
 
-We observe that `Mortality`, `College`, `FoodInsecurity`, `LTHighSchool`, `Sun`, `EQI`, `Income`, `PopChg`, `Bng`, and `UnemploymentChg` appear to be our strongest predictors (with the lowest incidence of multicollinearity).
+Additionally, we observed that `Mortality`, `College`, `FoodInsecurity`, `LTHighSchool`, `Sun`, `EQI`, `Income`, `PopChg`, `Bng`, and `UnemploymentChg` appear to be our strongest predictors (with the lowest incidence of multicollinearity).
 
-Based on variable importance, correlation with `health_score` and multicollinearity, we'll proceed through data preparation with just these variables and visit their distributions before proceeding further with our data preparation:
+Based on variable importance, correlation with `health_score` and multicollinearity, we proceed with these variables and visit their corresponding histograms:
 
-```{r, eval = F, echo = F}
+```{r, eval = T, echo = F}
 #Feature selection (address weak target correlation and multicollinearity)
-select_vars <- c('health_score','Mortality','College','FoodInsecurity','LTHighSchool','Sun','EQI','Income','PopChg','Bng','UnemploymentChg')
-select_df <- df_num[select_vars]
+select_df <- df_num[, c(1,4,6,8,11:14,16,18,23)]
 #head(select_df) #verify
 
 ```
 
-```{r, eval = TRUE, echo = FALSE, fig.height = 8, fig.width = 10}
+```{r, eval = T, echo = F, message = F, warning = F, fig.height = 8, fig.width = 10}
 #Histograms for all variables
 select_df %>%
     gather() %>%
     ggplot(aes(value)) +
-        facet_wrap(~ key, scales = "free", ncol=5) +
+        facet_wrap(~ key, scales = "free", ncol=4) +
         geom_histogram(bins=20,color="darkblue", fill="lightblue")
 
 ```
@@ -892,33 +885,97 @@ From the histograms above, we note a number of **non-normal** (ie. `PopChg`), **
 
 The wide-ranging difference in scales and non-normal distributions may be problematic in applying generalized linear regression models. Normalization may address the scales issue while transformation, outlier removal, or feature creation (ie. converting non-normal variables to dummy "flag" variables) may address the issue of non-normal distributions.
 
-```{r}
-#Imputation / removal (address NAs)
+................................................................................
 
-#Normalization (address difference in scales)
+First, we generate a baseline model with our 10 independent variables and observe an **R^2 of 0.6603**.
 
-#Outliers (address observations that hinder predictive prowess)
+```{r, eval = T, echo = F}
+#Ensure reproducibility
+set.seed(123)
 
-#Feature creation?
+#Train-test split data
+dt = sort(sample(nrow(select_df), nrow(select_df)*.75))
+train <- select_df[dt,]
+test <- select_df[-dt,] 
+#dim(train) #2253 x 11
+#dim(test) # 751 x 11
+
+#Baseline model (model 1): prior to outlier handling, normalization, feature engineering
+model_1 <- lm(health_score ~., data = train)
+summary(model_1) #R^2 = 0.6603, vars = 10
 
 ```
+
+We then set out to optimize `model_1` and the results of each step are summarized below:
+
+* **Handling NA's (Imputation)**: 0 missing values. Inessential.
+* **Normalization**: no positive impact on R^2 value. Commented out.
+* **Outlier Handling**: used Cook's distance and found no positive impact on R^2 value no matter how much we varied our filter value. 
+* **Feature Creation**: created 7 features and **improved R^2 to 0.6735**.
+
+Based on our R^2 value, we elect to proceed with `model_2` (our transformed model).
+
+```{r, eval = T, echo = F}
+
+#Imputation / removal (address NAs): 0 missing values
+
+#Normalization: 0 impact on R^2
+#norm_minmax <- function(x){(x- min(x, na.rm = TRUE)) /(max(x, na.rm = TRUE)-min(x, na.rm = TRUE))}
+#norm_df <- as.data.frame(lapply(train, norm_minmax))
+#head(norm_df) #verify
+
+#Outlier handling: reduced R^2
+#cooksD <- cooks.distance(model_1)
+#influential <- as.numeric(names(cooksD)[(cooksD > (10 * mean(cooksD, na.rm = TRUE)))])
+#train[influential,] #verify outliers - 20 rows
+#out_df <- train[-influential,]
+
+```
+
+```{r, eval = T, echo = F}
+#Feature engineering
+
+#combe datasets so we don't have to make features twice
+train$dataset <- 'train'
+test$dataset <- 'test'
+final_df <- rbind(train, test)
+
+#Creating new features (started with 1st, 3rd quartile values then adjusted)
+##strong EQI and lots of sun
+final_df$env_and_sun <- as.factor(ifelse(final_df$EQI > 0.90017 & final_df$Sun > 16350, 1, 0))
+##high proportion college graduates and high income (3rd quartile)
+final_df$college_and_income <- as.factor(ifelse(final_df$College > 20.0 & final_df$Income > 65000, 1, 0))
+##low binge drinking and high income (older, more responsible?)
+final_df$lowDrink_and_HiIncome <- as.factor(ifelse(final_df$Bng < 32.5 & final_df$Income > 61629, 1, 0))
+##high binge drinking and high income (expendable income, socially active)
+final_df$HiDrink_and_HiIncome <- as.factor(ifelse(final_df$Bng > 35.0 & final_df$Income > 61629, 1, 0))
+##high food insecurity and high mortality and less than HS
+final_df$LowFood_HiDeath_LowEd <- as.factor(ifelse(final_df$FoodInsecurity > 15.7 & final_df$Mortality > 500.00 & final_df$LTHighSchool > 20.0, 1, 0))
+##low income and less than HS and growth in unemployment
+final_df$LoIncome_LowEd_HiUnemp <- as.factor(ifelse(final_df$Income < 30000 & final_df$UnemploymentChg < -1.7 & final_df$LTHighSchool > 16.8, 1, 0))
+##big PopChg and low unemployment
+final_df$HiPop_LoUnemp <- as.factor(ifelse(final_df$PopChg > 1595.5 & final_df$UnemploymentChg > -1, 1, 0))
+
+#Transformed (model 2): after handling outliers, normalization, feature engineering
+train2 <- final_df %>% filter(dataset == 'train') %>% dplyr::select(-dataset)
+model_2 <- lm(health_score ~., data = train2)
+summary(model_2) #R^2 = 0.6735, vars = 17
+
+```
+
+We'll first attempt to optimize this model further via automatic methods (ie. StepAIC) and then apply our models to test data, compare the output statistics, and draw our conclusions and observations for next steps.
 
 ## Multivariate Regression Analysis
 
 ```{r}
-
-#Baseline model (model 1)
-# df_base <- subset(df, select=-c(1,2)) #categorical columns
-# model_1 <- lm(health_score ~., data = df_base)
-# summary(model_1) #R^2 = 0.6725, vars = 23
-# 
 # #AIC optimized model (model 2)
-# stepAIC(model_1)
-# model_2 <- lm(formula = health_score ~ Hvy + HvyPctChg + Bng + BngPctChg + 
-#     Mortality + HighSchool + SomeCollege + College + EQI + FoodInsecurity + 
-#     Sun + Unemployment + UnemploymentChg + Poverty + Population + 
-#     Births + Deaths + NetMig, data = df_base)
-# summary(model_2) #R^2 = 0.672, vars = 18
+stepAIC(model_2)
+model_3 <- lm(formula = health_score ~ Mortality + College + FoodInsecurity + 
+    LTHighSchool + Sun + EQI + Income + PopChg + Bng + UnemploymentChg + 
+    env_and_sun + lowDrink_and_HiIncome + HiDrink_and_HiIncome + 
+    LowFood_HiDeath_LowEd + LoIncome_LowEd_HiUnemp + HiPop_LoUnemp, 
+    data = train2)
+summary(model_3) #R^2 = 0.6734, vars = 17
 
 ```
 
