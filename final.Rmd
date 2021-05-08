@@ -47,11 +47,15 @@ library(sqldf)
 library(inspectdf)
 library(corrplot)
 library(MASS)
+library(caret)
+library(glmnet)
 
 options(scipen = 9)
 set.seed(123)
 
-#User-defined function
+#---User-defined function(s)---#
+
+#Adapted correlation matrix used in EDA section:
 plot_corr_matrix <- function(dataframe, significance_threshold){
   title <- paste0('Correlation Matrix for significance > ',
                   significance_threshold)
@@ -87,6 +91,17 @@ plot_corr_matrix <- function(dataframe, significance_threshold){
            na.label= " ",
            addCoef.col = 'black',
            number.cex = .9)
+}
+
+#Evaluation metrics used in Model Building / Selection section:
+eval_metrics = function(model, df, predictions, target){
+    resids = df[,target] - predictions
+    resids2 = resids**2
+    N = length(predictions)
+    r2 = as.character(round(summary(model)$r.squared, 4))
+    adj_r2 = as.character(round(summary(model)$adj.r.squared, 4))
+    print(adj_r2) #Adjusted R-squared
+    print(as.character(round(sqrt(sum(resids2)/N), 4))) #RMSE
 }
 
 ```
@@ -819,7 +834,7 @@ Based on these guidelines, it appears that we should proceed with at least `BngP
 
 To clarify we consulted a table (code available in Appendix) with the proportion of missing data and correlation with our target variable. We found that none of our independent variables are missing data, that `Hvy`, `MortalityChg`, `NetMig` have a weak correlation with `health_score`, and that the remainder of our variables carry a relatively strong correlation with the target.
 
-```{r, echo = F, eval = F}
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 
 #Compute proportion of missing data per variable
 v <- colnames(df_num)
@@ -844,7 +859,7 @@ To address weak target correlation and multicollinearity we consider the exclusi
 
 Before doing so, we utilize the **Boruta** function for feature ranking and selection as confirmation (included in Appendix). In doing so, `MortalityChg`, `BngPctChg`, `Unemployment`, `HvyPctChg`, and `Population` were identified as the variables with the lowest importance. 
 
-```{r, echo = F, eval = F, fig.height = 8, fig.width = 10}
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE, fig.height = 8, fig.width = 10}
 #Utilize Boruta for feature ranking and selection
 library(Boruta)
 
@@ -864,7 +879,7 @@ Additionally, we observed that `Mortality`, `College`, `FoodInsecurity`, `LTHigh
 
 Based on variable importance, correlation with `health_score` and multicollinearity, we proceed with these variables and visit their corresponding histograms:
 
-```{r, eval = T, echo = F}
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 #Feature selection (address weak target correlation and multicollinearity)
 select_df <- df_num[, c(1,4,6,8,11:14,16,18,23)]
 #head(select_df) #verify
@@ -889,7 +904,7 @@ The wide-ranging difference in scales and non-normal distributions may be proble
 
 First, we generate a baseline model with our 10 independent variables and observe an **R^2 of 0.6603**.
 
-```{r, eval = T, echo = F}
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 #Ensure reproducibility
 set.seed(123)
 
@@ -913,15 +928,13 @@ We then set out to optimize `model_1` and the results of each step are summarize
 * **Outlier Handling**: used Cook's distance and found no positive impact on R^2 value no matter how much we varied our filter value. 
 * **Feature Creation**: created 7 features and **improved R^2 to 0.6735**.
 
-Based on our R^2 value, we elect to proceed with `model_2` (our transformed model).
-
-```{r, eval = T, echo = F}
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 
 #Imputation / removal (address NAs): 0 missing values
 
 #Normalization: 0 impact on R^2
-#norm_minmax <- function(x){(x- min(x, na.rm = TRUE)) /(max(x, na.rm = TRUE)-min(x, na.rm = TRUE))}
-#norm_df <- as.data.frame(lapply(train, norm_minmax))
+norm_minmax <- function(x){(x- min(x, na.rm = TRUE)) /(max(x, na.rm = TRUE)-min(x, na.rm = TRUE))}
+norm_df <- as.data.frame(lapply(train, norm_minmax))
 #head(norm_df) #verify
 
 #Outlier handling: reduced R^2
@@ -932,10 +945,10 @@ Based on our R^2 value, we elect to proceed with `model_2` (our transformed mode
 
 ```
 
-```{r, eval = T, echo = F}
+```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 #Feature engineering
 
-#combe datasets so we don't have to make features twice
+#combine datasets so we don't have to make features twice
 train$dataset <- 'train'
 test$dataset <- 'test'
 final_df <- rbind(train, test)
@@ -958,26 +971,251 @@ final_df$HiPop_LoUnemp <- as.factor(ifelse(final_df$PopChg > 1595.5 & final_df$U
 
 #Transformed (model 2): after handling outliers, normalization, feature engineering
 train2 <- final_df %>% filter(dataset == 'train') %>% dplyr::select(-dataset)
+test2 <- final_df %>% filter(dataset == 'test') %>% dplyr::select(-dataset)
 model_2 <- lm(health_score ~., data = train2)
-summary(model_2) #R^2 = 0.6735, vars = 17
+#summary(model_2) #R^2 = 0.6735, vars = 17
 
 ```
 
-We'll first attempt to optimize this model further via automatic methods (ie. StepAIC) and then apply our models to test data, compare the output statistics, and draw our conclusions and observations for next steps.
+As a final transformation step, we optimize on our AIC score - a measure of goodness of fit *and* model complexity - via StepAIC() function.
 
-## Multivariate Regression Analysis
+```{r, comment=FALSE, warning=FALSE, message=FALSE}
+#AIC optimize the transformed model
+#stepAIC(model_2)
 
-```{r}
-# #AIC optimized model (model 2)
-stepAIC(model_2)
 model_3 <- lm(formula = health_score ~ Mortality + College + FoodInsecurity + 
     LTHighSchool + Sun + EQI + Income + PopChg + Bng + UnemploymentChg + 
     env_and_sun + lowDrink_and_HiIncome + HiDrink_and_HiIncome + 
     LowFood_HiDeath_LowEd + LoIncome_LowEd_HiUnemp + HiPop_LoUnemp, 
     data = train2)
-summary(model_3) #R^2 = 0.6734, vars = 17
+
+#summary(model_3) #R^2 = 0.6734, vars = 16
+
+# Predict and evaluate raw_lm model on training data
+predictions = predict(model_3, newdata = train2)
+eval_metrics(model_3, train2, predictions, target = 'health_score') #0.671, 0.0764
+
+# Predict and evaluate raw_lm model on testing data
+predictions = predict(model_3, newdata = test2)
+eval_metrics(model_3, test2, predictions, target = 'health_score') #0.671, 0.0815
 
 ```
+
+We then output resulting model metrics in tabular form for interpretation:
+
+```{r, eval = T, echo = F, message = F, warning = F, fig.height = 8, fig.width = 10}
+#Create Kable table to succinctly summarize model optimization results
+# Model <- c('model_1', 'model_2', 'model_3')
+# Var_Num <- c(10, 17, 16)
+# R_Squared <- c(0.6603, 0.6735, 0.6734)
+# RSE <- c(0.07808, 0.07667, 0.07667)
+# 
+# output <- cbind(Model, Var_Num, R_Squared, RSE)
+# 
+# output %>%
+#   kbl(caption = "Results of Data Preparation") %>%
+#   kable_minimal()
+
+#REUSE THIS PORTION LATER FOR THE FINAL, COMPLETE TABLE (with all models)
+
+```
+
+Based on the three metrics noted above, we elect the AIC optimized model (`model_3`) to represent our linear model. It strikes the greatest balance between model complexity, goodness of fit and error.
+
+
+## Multivariate Regression Analysis
+
+In addition to the models we've already explored, we explore a linear regression model of our raw data, apply the stepAIC() function to observe the impact on model predictive metrics, and then proceed regularization (ridge and lasso) regression models on both the transformed and the raw data.
+
+We then output the performance metrics of all models in a table to select the model with the strongest predictive promise. We evaluate performance using the R-squared value and Root Mean Squared Error (RMSE). Lower RMSE and higher R-squared values are indicative of a stronger model.
+
+```{r}
+#Linear regression model, raw data
+
+#Train-test split data
+dt2 = sort(sample(nrow(df_num), nrow(df_num)*.75))
+train_raw <- df_num[dt2,]
+test_raw <- df_num[-dt2,] 
+#dim(train_raw) #2253 x 23
+#dim(test_raw) # 751 x 23
+
+#Train raw_lm model:
+raw_lm <- lm(health_score ~., data = train_raw)
+#summary(raw_lm) #R^2 = 0.6808, vars = 22
+
+# Predict and evaluate raw_lm model on training data
+predictions = predict(raw_lm, newdata = train_raw)
+eval_metrics(raw_lm, train_raw, predictions, target = 'health_score') #0.6678, 0.0759
+
+# Predict and evaluate raw_lm model on testing data
+predictions = predict(raw_lm, newdata = test_raw)
+eval_metrics(raw_lm, test_raw, predictions, target = 'health_score') #0.6678, 0.0827
+
+```
+
+```{r}
+#AIC optimize linear regression model, raw data
+#stepAIC(raw_lm)
+
+#Train aic_raw_lm model:
+aic_raw_lm <- lm(formula = health_score ~ Hvy + HvyPctChg + Bng + Mortality + 
+    HighSchool + SomeCollege + College + EQI + FoodInsecurity + 
+    Sun + Unemployment + UnemploymentChg + Poverty + Population + 
+    Births + Deaths + NetMig, data = train_raw)
+
+#summary(aic_raw_lm) #R^2 = 0.6802, vars = 17
+
+# Predict and evaluate aic_raw_lm model on training data
+predictions = predict(aic_raw_lm, newdata = train_raw)
+eval_metrics(aic_raw_lm, train_raw, predictions, target = 'health_score') #0.6671, 0.0761
+
+# Predict and evaluate aic_raw_lm model on testing data
+predictions = predict(aic_raw_lm, newdata = test_raw)
+eval_metrics(aic_raw_lm, test_raw, predictions, target = 'health_score') #0.6671, 0.0828
+
+```
+
+
+### Ridge Regression
+
+We use the glmnet() package to build our regularized regression models (first ridge regression, then lasso regression). The glmnet function does not work with dataframes, so we make use of numeric matrices.
+
+We use the dummyVars function from the caret package to create our model matrix. We then use the predict() function to create numeric model matrices from our training and test data.
+
+```{r}
+#Ridge regression, raw data
+
+#Specify column names
+cr_raw = c('Hvy', 'HvyPctChg', 'BngPctChg', 'MortalityChg', 'HighSchool', 'SomeCollege', 'College', 'Unemployment', 'Poverty', 'Population', 'Births', 'Deaths', 'NetMig', 'Mortality', 'FoodInsecurity', 'LTHighSchool', 'Sun', 'EQI', 'Income', 'PopChg', 'Bng', 'UnemploymentChg', 'health_score')
+
+#Generate dummy variables from data (if applicable)
+dummies <- dummyVars(health_score ~ ., data = df_num[,cr_raw])
+train_dummies = predict(dummies, newdata = train_raw[,cr_raw]) #2253 x 22
+test_dummies = predict(dummies, newdata = test_raw[,cr_raw]) #751 x 22
+print(dim(train_dummies)); print(dim(test_dummies))
+
+#Create numeric model matrices
+x = as.matrix(train_dummies)
+y_train = train_raw$health_score
+x_test = as.matrix(test_dummies)
+y_test = test_raw$health_score
+
+lambdas <- 10^seq(2, -3, by = -.1) #specify lambda sequence
+
+#Train model
+raw_ridge_reg = glmnet(x, y_train, nlambda = 25, alpha = 0, family = 'gaussian', lambda = lambdas)
+summary(raw_ridge_reg)
+
+#Compute optimal lambda
+raw_cv_ridge <- cv.glmnet(x, y_train, alpha = 0, lambda = lambdas)
+ol <- cv_ridge$lambda.min
+ol #0.003162278
+
+#Compute R^2 from true and predicted values
+eval_results <- function(true, predicted, df) {
+  SSE <- sum((predicted - true)^2)
+  SST <- sum((true - mean(true))^2)
+  R_square <- round((1 - SSE / SST),4)
+  RMSE = round(sqrt(SSE/nrow(df)),4)
+  
+  # Model performance metrics
+data.frame(RMSE = RMSE, Rsquare = R_square)
+}
+
+#Predict and evaluate raw_ridge_reg model on training data
+predictions_train <- predict(raw_ridge_reg, s = ol, newx = x)
+eval_results(y_train, predictions_train, train_raw) #RMSE: 0.0763, RSquare: 0.6671
+
+#Predict and evaluate raw_ridge_reg model on testing data
+predictions_test <- predict(raw_ridge_reg, s = ol, newx = x_test)
+eval_results(y_test, predictions_test, test_raw) #RMSE: 0.0791, RSquare: 0.6718
+```
+
+```{r}
+#Ridge regression, transformed data
+
+#Specify column names
+cols_reg = c('Mortality', 'College', 'FoodInsecurity', 'LTHighSchool', 'Sun', 'EQI', 'Income', 'PopChg','Bng','UnemploymentChg','env_and_sun','lowDrink_and_HiIncome','HiDrink_and_HiIncome','LowFood_HiDeath_LowEd','LoIncome_LowEd_HiUnemp','HiPop_LoUnemp','health_score')
+
+#Generate dummy variables from data (if applicable)
+dummies <- dummyVars(health_score ~ ., data = dat[,cols_reg])
+train_dummies2 = predict(dummies, newdata = train2[,cols_reg]) #2253 x 22
+test_dummies2 = predict(dummies, newdata = test2[,cols_reg]) #751 x 22
+print(dim(train_dummies2)); print(dim(test_dummies2))
+
+#Create numeric model matrices
+x2 = as.matrix(train_dummies2)
+y_train2 = train2$health_score
+x_test2 = as.matrix(test_dummies2)
+y_test2 = test2$health_score
+
+#Train model
+ridge_reg = glmnet(x2, y_train2, nlambda = 25, alpha = 0, family = 'gaussian', lambda = lambdas)
+summary(ridge_reg)
+
+#Compute optimal lambda
+cv_ridge2 <- cv.glmnet(x2, y_train2, alpha = 0, lambda = lambdas)
+ol2 <- cv_ridge2$lambda.min
+ol2 #0.003162278
+
+#Predict and evaluate ridge_reg model on training data
+predictions_train2 <- predict(ridge_reg, s = ol2, newx = x2)
+eval_results(y_train2, predictions_train2, train2) #RMSE: 0.0764, RSquare: 0.6733
+
+#Predict and evaluate ridge_reg model on training data
+predictions_test2 <- predict(ridge_reg, s = ol2, newx = x_test2)
+eval_results(y_test2, predictions_test2, test2) #RMSE: 0.0815, RSquare: 0.6319
+
+```
+
+
+### Lasso Regression
+
+Introduction
+
+```{r}
+#Lasso regression, raw data
+
+# Setting alpha = 1 implements lasso regression
+lasso_reg <- cv.glmnet(x, y_train, alpha = 1, lambda = lambdas, standardize = TRUE, nfolds = 5)
+
+#Compute optimal lambda
+lambda_best <- lasso_reg$lambda.min 
+lambda_best #0.001
+
+raw_lasso <- glmnet(x, y_train, alpha = 1, lambda = lambda_best, standardize = TRUE)
+
+predictions_train <- predict(raw_lasso, s = lambda_best, newx = x)
+eval_results(y_train, predictions_train, train_raw) #RMSE: 0.0767, Rsquare: 0.664
+
+predictions_test <- predict(raw_lasso, s = lambda_best, newx = x_test)
+eval_results(y_test, predictions_test, test_raw) #RMSE: 0.0792, Rsquare: 0.6712
+
+```
+
+```{r}
+#Lasso regression, transformed data
+
+# Setting alpha = 1 implements lasso regression
+lasso_reg2 <- cv.glmnet(x2, y_train2, alpha = 1, lambda = lambdas, standardize = TRUE, nfolds = 5)
+
+#Compute optimal lambda
+lambda_best2 <- lasso_reg2$lambda.min 
+lambda_best2 #0.001
+
+lasso_model <- glmnet(x2, y_train2, alpha = 1, lambda = lambda_best2, standardize = TRUE)
+
+predictions_train2 <- predict(lasso_model, s = lambda_best2, newx = x2)
+eval_results(y_train2, predictions_train2, train2) #RMSE: 0.0765, Rsquare: 0.6724
+
+predictions_test2 <- predict(lasso_model, s = lambda_best2, newx = x_test2)
+eval_results(y_test2, predictions_test2, test2) #RMSE: 0.0811, Rsquare: 0.6354
+
+```
+
+
+### Model Selection
+
 
 ## Conclusions & Next Steps
 
@@ -986,6 +1224,9 @@ What have I learned?
 Areas for Future Research
 
 ## Bibliography
+
+https://www.pluralsight.com/guides/linear-lasso-and-ridge-regression-with-r
+
 
 ## Appendix with Code
 
