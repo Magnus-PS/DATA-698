@@ -34,9 +34,15 @@ library(MASS)
 
 # Background
 
-The purpose of this project will be to investigate the impact of a variety of health and lifestyle metrics on life expectancy. To apply regression to publicly available data and attempt to identify the U.S. counties most favorable to an active, healthy lifestyle.
+The purpose of this project will be to investigate the impact of a variety of health and lifestyle metrics on county-level health scores. 
 
-The purpose of this document, more specifically, is to document the process of  creating our dependent 'healthy lifestyle' metric as well as the pre-processing of our independent variables. It's to document the compilation of the dataset to be used for this Final Project.
+We set out with the goal of answering the following 3 questions:
+
+1. What United States counties are most favorable for an active, healthy lifestyle?
+2. What are the differentiating characteristics that make them so?
+3. What might the best regression model be for modeling the relationship between our healthy lifestyle metric and these differentiating characteristics?
+
+The purpose of this document, more specifically, is to document the process of  creating our dependent 'healthy lifestyle' metric as well as the pre-processing of our independent variables. It's to answer Q1 and document the compilation of the dataset to be used for this Final Project.
 
 ................................................................................
 

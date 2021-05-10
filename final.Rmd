@@ -763,7 +763,7 @@ The result of our merging all dataframes / variables into one master is a 3154 o
 
 The goal of exploratory data analysis (or EDA for short) is to really grasp and understand the data at hand.
 
-For our approach, we first got to know the structure and value ranges, we then looked at the distributions of our features, visualized the relationship our variables had with one another and the target variable via correlation matrix, and visited the proportion of missing data vs. correlation with target. After this point, we'd drawn enough insight to prepare our data and build our model(s).
+For our approach, we got to know our data’s structure and value ranges, visualized the relationship our variables had with one another and the target variable via correlation matrix, and explored the pertinence of each variable and the corresponding distribution for features we would select. We then prepared our data (handled NA’s and outliers, normalized, and created features) and proceeded to optimize a linear regression model based on our transformed data.
 
 ### High Level Exploration
 
@@ -922,7 +922,8 @@ test <- select_df[-dt,]
 #dim(train) #2253 x 11
 #dim(test) # 751 x 11
 
-#Baseline model (model 1): prior to outlier handling, normalization, feature engineering
+###LINEAR REGRESSION (baseline model): prior to outlier handling, normalization, feature engineering
+
 model_1 <- lm(health_score ~., data = train)
 summary(model_1) #R^2 = 0.6603, vars = 10
 
@@ -988,7 +989,7 @@ model_2 <- lm(health_score ~., data = train2)
 As a final transformation step, we utilized the stepAIC() function to optimize our model based on AIC score - a measure of goodness of fit *and* model complexity. During feature creation, we'd added 7 features and we wanted to ensure that each of these features was indeed improving our predictive capability rather than just making our model more complex.
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-#AIC optimize the transformed model
+###LINEAR REGRESSION (transformed model): features created, AIC optimized
 #stepAIC(model_2)
 
 model_3 <- lm(formula = health_score ~ Mortality + College + FoodInsecurity + 
@@ -1017,16 +1018,22 @@ As a next step, we'd proceed through model building on to model selection.
 
 In order to strike the greatest balance between model complexity, goodness of fit and error, we explored two more linear regression models before moving on to regularization.
 
-We explored linear regression models with raw data and AIC-optimized data, and then proceeded to use regularization (ridge and lasso) regression models on both our transformed and raw data.
+We explored linear regression models with raw data and AIC-optimized data, and then proceeded to use regularization (ridge and lasso) regression models on both our transformed and raw data. The aim was to explore different models and select the strongest amongst them. To do so, we train-test split our data (raw and transformed), constructed our models, and then evaluated each model's performance on seen and unseen data. 
 
-LEFT OFF HERE: comment on the purpose of this section (to explore different models and then select the strongest)
+To conclude, we compared and contrasted the performance of all of our models using the R-squared and Root Mean Square Error (RMSE) as a part of our selection criteria.
 
 ### Linear Regression (Raw)
 
-Comment on why all variables and why AIC optimized.
+As a means of comparing our (earlier) transformed model to a true baseline, a model with all of the original features and no operations performed, we considered a model with all 22 independent variables (from earlier).
+
+The perceived strength of this "raw" model would have been the number of features whereas the weakness would be the higher incidence of over-fitting. 
+
+With this in mind, we also considered an AIC-optimized model. A model where variables were *automatically* selected in a step-wise manner based on the predictive potential that their inclusion might bring.
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-#Linear regression model, raw data
+## --- Model Building --- ##
+
+###LINEAR REGRESSION (raw data)
 
 #Train-test split data
 dt2 = sort(sample(nrow(df_num), nrow(df_num)*.75))
@@ -1050,7 +1057,7 @@ eval_metrics(raw_lm, test_raw, predictions, target = 'health_score') #0.6678, 0.
 ```
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-#AIC optimize linear regression model, raw data
+###LINEAR REGRESSION (raw data, AIC optimized)
 #stepAIC(raw_lm)
 
 #Train aic_raw_lm model:
@@ -1071,17 +1078,18 @@ eval_metrics(aic_raw_lm, test_raw, predictions, target = 'health_score') #0.6671
 
 ```
 
-
 ### Ridge Regression
 
-Comment on why regularization, what ridge regression was and what the precursor steps were ...
+Ridge regression is an extension of linear regression where model complexity and the potential for over-fitting, are addressed by adding a penalty parameter to penalize large coefficients.
 
-We use the glmnet() package to build our regularized regression models (first ridge regression, then lasso regression). The glmnet function does not work with dataframes, so we make use of numeric matrices.
+One of the major differences between linear and regularized regression is the use of a `lambda` tuning parameter. To automate the task of finding the optimal lambda value, we made use of the cv.glmnet() function.
 
-We use the dummyVars function from the caret package to create our model matrix. We then use the predict() function to create numeric model matrices from our training and test data.
+We used the glmnet package to build our regularized regression models (with `alpha` = 0 for ridge regression and `alpha` = 1 for lasso regression). Being that the corresponding function does not work with dataframes, we used the dummyVars() function from the caret package to create our model matrices and then used the predict() function to create numeric model matrices for both training and test data.
+
+Our first ridge regression model was trained on raw data while the second was trained on transformed data. We then computed the optimal lambda for each model and evaluated the models (with optimal lambda as a parameter). *Performance metrics are noted in the 'Model Selection' section.*
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-#Ridge regression, raw data
+###RIDGE REGRESSION (raw data)
 
 #Specify column names
 cr_raw = c('Hvy', 'HvyPctChg', 'BngPctChg', 'MortalityChg', 'HighSchool', 'SomeCollege', 'College', 'Unemployment', 'Poverty', 'Population', 'Births', 'Deaths', 'NetMig', 'Mortality', 'FoodInsecurity', 'LTHighSchool', 'Sun', 'EQI', 'Income', 'PopChg', 'Bng', 'UnemploymentChg', 'health_score')
@@ -1130,7 +1138,7 @@ eval_results(y_test, predictions_test, test_raw) #RMSE: 0.0789, RSquare: 0.659
 ```
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-#Ridge regression, transformed data
+###RIDGE REGRESSION (transformed data)
 
 #Specify column names
 cols_reg = c('Mortality', 'College', 'FoodInsecurity', 'LTHighSchool', 'Sun', 'EQI', 'Income', 'PopChg','Bng','UnemploymentChg','env_and_sun','lowDrink_and_HiIncome','HiDrink_and_HiIncome','LowFood_HiDeath_LowEd','LoIncome_LowEd_HiUnemp','HiPop_LoUnemp','health_score')
@@ -1166,13 +1174,16 @@ eval_results(y_test2, predictions_test2, test2) #RMSE: 0.0814, RSquare: 0.632
 
 ```
 
-
 ### Lasso Regression
 
-Comment on why regularization, what ridge regression was and what the precursor steps were ...
+LASSO (Least Absolute Shrinkage and Selection Operator) regression is an extension of linear regression where model complexity and the potential for over-fitting, are addressed by limiting the sum of the absolute values of model coefficients.
+
+Similar to ridge regression, the first step was to find the optimal lambda value and we automated this task through the use of the cv.glmnet() function.
+
+Our first LASSO model was trained on raw data while the second was trained on transformed data. We then computed the optimal lambda for each model and evaluated the models (with optimal lambda as a parameter). *Performance metrics are noted in the 'Model Selection' section.*
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-#Lasso regression, raw data
+###LASSO REGRESSION (raw data)
 
 # Setting alpha = 1 implements lasso regression
 lasso_reg <- cv.glmnet(x, y_train, alpha = 1, lambda = lambdas, standardize = TRUE, nfolds = 5)
@@ -1192,7 +1203,7 @@ eval_results(y_test, predictions_test, test_raw) #RMSE: 0.0783, Rsquare: 0.6642
 ```
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
-#Lasso regression, transformed data
+###LASSO REGRESSION (transformed data)
 
 # Setting alpha = 1 implements lasso regression
 lasso_reg2 <- cv.glmnet(x2, y_train2, alpha = 1, lambda = lambdas, standardize = TRUE, nfolds = 5)
@@ -1211,15 +1222,15 @@ eval_results(y_test2, predictions_test2, test2) #RMSE: 0.0811, Rsquare: 0.6354
 
 ```
 
-Transition: closeout discussion of different models.
-
 ### Model Selection
 
-We output the performance metrics of all models in a table to select the model with the strongest predictive promise. We evaluate performance using the R-squared value and Root Mean Squared Error (RMSE). Lower RMSE and higher R-squared values are indicative of a stronger model.
+We output the performance metrics of all models in a table to select the model with the strongest predictive promise. We evaluated performance using the R-squared value and Root Mean Squared Error (RMSE). Lower RMSE and higher R-squared values are indicative of a stronger model.
 
-To succinctly summarize our model optimization attempts and results, we capture the method used, the data the method was applied to, as well as the number of variables considered, and corresponding evaluation metrics for raw and transformed data:
+To succinctly summarize our model optimization attempts and results, we captured the method used, the data the method was applied to, as well as the number of variables considered, and corresponding evaluation metrics for raw and transformed data:
 
 ```{r, eval = T, echo = F, message = F, warning = F, fig.height = 8, fig.width = 10}
+## --- Model Selection --- ##
+
 #Create Kable table to succinctly summarize model optimization results
 Model <- c('1', '2', '3', '4', '5', '6', '7')
 Method <- c('Linear', 'Linear', 'Linear', 'Ridge', 'Ridge', 'Lasso', 'Lasso')
@@ -1246,14 +1257,43 @@ From the above model statistics, we can extend that:
 * `R2_test`: Model 3 is the highest performing (by a relatively significant margin), followed by Models 2, 1, 6 and then 4. A higher R squared value for this column is indicative of stronger predictive performance on (unseen) testing data. Our data transformations appear to have led to the strongest predictive model for unseen data.
 * `RMSE_test`: Models 6, 4, 7, 5, and then 3 have the lowest error for (unseen) testing data. Regularization methods appear to reduce error.
 
-To find the point of balance between model complexity, goodness of fit and error, we choose Model 3. Model 3, linear regression applied to transformed data, is the most promising of models due to its simplicity, relatively low error rate (all models performed well here), and strong performance on unseen data. This last metric, unseen data performance, was the deciding factor.
+To find the point of balance between model complexity, goodness of fit and error, we elected Model 3. Model 3, linear regression applied to transformed data, was the most promising of models due to its simplicity, relatively low error rate (all models performed well here), and strong performance on unseen data. This last metric, unseen data performance, was the deciding factor.
 
 
 ## Conclusions & Next Steps
 
-What have I learned?
+### What have I learned?
 
-Areas for Future Research
+We started out with the goal of answering the following 3 questions:
+
+1. What United States counties are most favorable for an active, healthy lifestyle?
+2. What are the differentiating characteristics that make them so?
+3. What might the best regression model be for modeling the relationship between our healthy lifestyle metric and these differentiating characteristics?
+
+Being that readily-available data that would have suited the scope of this project was difficult to find, the scope and aim of the project expanded to include the creation of a healthy lifestyle metric and the compilation of a set of independent variables to be read in in conjunction. In other words, a large portion of this project was dedicated toward the creation of the dataset we would consider for questions 2 and 3.
+
+In the data gathering and pre-processing phase, we created our dependent health score variable as a combination of life expectancy, obesity, and physical activity data read in from the IHME website. Over-arching metrics (a combination of 4 sub-metrics) were summed and normalized to bring our variable onto a 0 to 1 scale. We also utilized our health score to filter for the top 10 healthiest counties. We then extended a few assumptions regarding the factors that might come into play for the healthiest counties and we took these factors into consideration when reading in our independent variables. Finally, we read in county-level standard and non-standard health-related variables (ie. Alcohol Consumption, Heart Disease, and Education) from different sources. We then brought the data from each of these sources into a consistent format so that we could merge data frames and explore our data. 
+
+In the data exploration and preparation phase, we first interpreted our 3154 observations x 25 variables. We then dropped impertinent variables and NA values, identified our strongest and weakest predictors (strongest predictors included: Mortality, College, FoodInsecurity, LTHighSchool, Sun, EQI, Income, PopChg,  Bng, and UnemploymentChg), and proceeded with only 10 of the original 24 independent variables (due to multicollinearity and weak target-correlation). Through normalization, feature creation, and AIC-optimization, we optimized on the coefficient of determination (R-squared). We found our optimal (transformed) linear regression model included 16 independent variables with a coefficient of determination of 0.6734.
+
+In the multivariate regression analysis phase, we expanded upon this transformed linear regression model. We set out to explore linear regression models with raw data and AIC-optimized data, and then proceeded to use regularization (ridge and lasso) regression models on both our transformed and raw data. The aim was to explore different models and select the strongest amongst them. To do so, we train-test split our data (raw and transformed), constructed our models, and then evaluated each model’s performance on seen and unseen data. We then output the performance metrics of all models in a table, where the R-squared and RMSE values were used as part of our selection criterion. The linear regression model applied to transformed data was found to be the strongest model, largely due to its stand-out performance on unseen (testing) data.
+
+### Areas for Future Research
+
+Over the course of the project, while researching, and especially during the final phase, I realized a number of ways in which this project could have been taken to a higher level and I’d like to share these potential refinements here.
+
+They include, but are not limited to:
+
+1. Read in ready-made data. I spent a large portion of time gathering and pre-processing data, and one simple alternative would have been to read in ready-made data and then spend a larger portion of time on model-building or more advanced techniques.
+2. Gather different variables. Gathering different variables would allow us to create a completely different dependent variable and/or take our models in a completely different direction. I read in some standard (ie. Mortality) and some non-standard variables (ie. Alcohol Consumption). Reading in a majority of non-standard variables could have led to more interesting data trends, models, and conclusions. 
+3. Read in more data. One of the simplest ways to improve the efficacy of a model is to incorporate more data. Especially more pertinent data. When we include more data that we’d hypothesized as having a strong impact on our dependent variable, it improves the likelihood that our models will perform with a greater predictive accuracy.
+4. Experiment with more advanced regularization techniques (ie. elastic nets), explore bagging and bootstrapping, or change model classes completely to explore the impact on predictive power (ie. linear regression compared to neural nets). Either of these routes may have led to a model with a stronger performance than our Model 3.
+5. Create more features. Feature creation led to the most significant improvement in our model (during Data Preparation). If I would’ve researched this realm further and allocated more time, it likely would have resulted in an even stronger model.
+6. Consider classification rather than regression. If I would have utilized a binary health_score (ie. val > 0.50 : 1) then I could have explored numerous classification techniques on the same set of data. In some ways it would have been a completely different project that may have led to completely different insights.
+7. Cast predictions. Beyond model selection, I could have applied Model 3 to cast predictions on our (unseen) test data to then assess how accurately it actually predicted healthy lifestyle at a county level. 
+
+................................................................................
+
 
 ## Bibliography
 
@@ -1262,8 +1302,12 @@ https://www.pluralsight.com/guides/linear-lasso-and-ridge-regression-with-r
 
 ## Appendix with Code
 
+### Data gathering and pre-processing
+
+Being that data gathering and pre-processing was a major focus of this project, I've dedicated a [separate RPubs publication](https://rpubs.com/Magnus_Skonberg/767737) to document the creation of our dependent 'healthy lifestyle' metric as well as the pre-processing of our independent variables. *Note: some light adaptations to this original code have been made above.*
+
+### All code (no output)
+
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
 
 ```
-
-How have we done this in the past? (ie. DATA 621)
