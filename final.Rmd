@@ -110,21 +110,109 @@ eval_metrics = function(model, df, predictions, target){
 
 TBD
 
+### Key Words: *Feature Creation, Feature Selection, County Level Health, Health Outcomes, Regression, Regularization*
+
 ## Introduction
 
 ### Author
 
+*Magnus Skonberg* is a Consultant and Master of Data Science candidate at CUNY SPS, located in Middle Island NY. Although this was a solo project, I (Magnus) would like to give a special thanks to Jeff Nieman, Avraham Adler, Jaan Altosaar, and Christian Thieme for their guidance and feedback along the way.
+
 ### The Problem
+
+The U.S. spends more on health care than any other OECD county yet it has the lowest life expectancy, highest number of hospitalizations from preventable causes, highest rate of avoidable deaths and a chronic disease burden and obesity rate at two times higher than the OECD average.
+
+In short, the forecast for American health is gloomy.
+
+LEFT OFF HERE
+
+[insert image / graphic]
+
+follow up par.
+
+state Qs
+
+transition
 
 ## Literature Review
 
-To be amended ...
+For this project I focused my research and literature review around health outcome drivers and means of feature selection.
+
+While the scope of this project was to explore related United States county data, I took a broad approach and considered international and higher-level data to best determine which variables might be fused to create the dependent variable and which variables might be best to consider as independent variables (typical and atypical):
+
+### Dependent Variable Compilation
+
+The first group of researched variables dealt with our dependent variable and the variables (perceived as) most correlated with healthy lifestyle.
+
+Bhardwaj, Amiri, Buchwald, and Amram identified social and environmental correlates of healthy aging and longevity. They found that demographic, environmental, and social factors all play a significant role in predicting an individual’s likelihood to lead a healthy life and live until an older age. From their study, the importance of longevity as a factor in living a healthy lifestyle was reinforced, as were a number of factors we might consider as independent variables when building a regression model (ie. education, socioeconomic status).
+
+Kaminsky, Lessler, Sharfstein, and Wallace, observed the effect of clustering based on sociodemographic context when considering county-level percentile health rankings vs. nationwide rankings. They considered smoking, motor vehicle crash deaths, and obesity as factors and found that clustering based on sociodemographic characteristics allowed for a better understanding of how other factors may shape the prevalence of health outcomes. From their study, the importance of obesity as a healthy lifestyle factor was reinforced, as was the importance of nuance when interpreting health outcome variables at a county level. 
+
+The final factor for consideration in the make-up of our dependent variable was physical activity. The motivation for its inclusion came from Azevedo, Hallal, Wells, and Victoria’s research. Although their study was primarily focused on physical activity amongst adolescents, they considered the short term and long term effects of physical activity and found that “there is an indirect effect on all health benefits resulting from adult physical activity”.
+
+Our dependent variable was a fusion of longevity, obesity, and physical activity county-level data. These three are important factors that take short and long term health into consideration, and thus their amalgamation provides a strong representation of healthy lifestyle (as a metric) at a county-level.
+
+### Independent Environmental Variables
+
+An, Li, and Jiang explored the impact of environmental determinants (via EQI) on physical inactivity among U.S. adults at the county-level. Although, environment and physical activity vary substantially across the United States, the study identified an inverse relationship between environmental quality and physical inactivity.
+
+Holick and Wacker provided an in-depth glance into the incredible health benefits of sun exposure and increased vitamin D production. They cite an inverse association with latitude and many chronic illnesses including: cancer, autoimmune disease, diabetes, depression, seasonal affect disorder, hypertension, etc. and recommended increased sun exposure (without sun burn) and vitamin D fortification and supplementation as a natural remedy to many of these ailments.
+
+From consideration of the environmental quality index (EQI) and yearly sunlight, we move to that of socialization and crowding by considering population density and the effect (positive or negative) it may play on the lifestyle of its local inhabitants. Sven Bremberg analyzed the role population density played on life expectancy and years lost, and found that mortality rates were consistently high in Finland, Norway and Sweden in less densely populated municipalities. We might extend, from this, the notion that (to a certain point), a higher population density is more favorable for a longer, healthier life.
+
+### Independent Health Variables
+
+In A National Study of the Association Between Food Environments and County Level Health Outcomes, Ahern, Brown, and Dukas applied linear regression models to estimate the relationship between food availability and access variables (ie. per capita grocery stores) with health outcomes. Positive health outcomes were linked to more per capita full‐service restaurants, grocery stores, fitness and recreation centers, and direct farm sales, while negative health outcomes were linked to more fast-food restaurants and convenience stores. As a general takeaway we might extend that access to nutrient-dense foods if favorable to healthier lifestyle whereas living in a “food desert” would favor the opposite.
+
+In Smoking, alcohol consumption and mental health: Data from the Brazilian study of Cardiovascular Risks in Adolescents (ERICA) Ferreira, Jardim, Jardim, Sousa, and Rosa found that second hand smoke, smoking, and alcohol consumption are all adversely associated with psychological distress in the adolescent population. When we extend this from adolescent Brazilians to consider adult Americans, it will be interesting to observe the strength of correlation between bad habits at scale and a county’s standing health-wise. 
+
+### Independent Economic Variables
+
+Islam, Leer, Teo, et al. found that among patients with coronary heart disease or stroke event, the prevalence of healthy lifestyle behaviors was relatively low regardless of whether the nation under consideration was high vs. medium vs. low income, but the behaviors were at their lowest levels in poorer countries. From this, we may extend that higher income counties (in our situation) are more likely to follow a healthy lifestyle – not smoking, quality diet, regular exercise, etc. 
+
+In Length of Unemployment and Health-related Outcomes, Hammarstrom, Janlert, and Winefield studied the relationship between cumulative length of intermittent spells of unemployment and different health-related outcomes using data from a longitudinal study of school leavers in a mid-size town in northern Sweden. Respondents were followed for 14 years and the researchers concluded that ‘cumulative length of unemployment is correlated with deteriorated health and health behavior’. Extended from this mid-size Swedish town to the US at a county-level, we may expect a strong, negative correlation between unemployment and healthy lifestyle.
+
+### Summary of Literature Review for Variables
+
+The source, type, and name of each variable under consideration / for inclusion is captured below:
+
+```{r, eval = T, echo = F, message = F, warning = F, fig.height = 8, fig.width = 10}
+## --- Model Selection --- ##
+
+#Create Kable table to succinctly summarize variable research
+Source <- c('Bhardwaj, Amiri, Buchwald, and Amram', 'Kaminsky, Lessler, Sharfstein, and Wallace', 'Azevedo, Hallal, Wells, and Victoria', 'An, Li, and Jiang', 'Holick and Wacker', 'Bremberg', 'Ahern, Brown, and Dukas', 'Ferreira, Jardim, Jardim, Sousa, and Rosa', 'Islam, Leer, Teo, et al.', 'Hammarstrom, Janlert, and Winefield', 'Bhardwaj, Amiri, Buchwald, and Amram')
+Type <- c('Dependent', 'Dependent', 'Dependent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent')
+Variable <- c('Longevity', 'Obesity', 'Physical Activity', 'EQI (Environmental Quality)', 'Sunlight', 'Population Density', 'Nutrition', 'Alcohol Consumption', 'Income', 'Unemployment', 'Education')
+
+LRVS <- cbind(Source, Type, Variable)
+
+LRVS %>%
+  kbl(caption = "Literature Review: Variable Summary") %>%
+  kable_minimal() %>%
+  kable_styling(latex_options = "hold_position")
+
+```
+
+### Additional Research for Model Building
+
+Julian Faraway’s *Linear Models with R* and Simon Sheather’s *A Modern Approach to Regression with R* proved invaluable as references for applied regression, feature selection, model building and model selection.
+
 
 ## Methodology
 
-* Data Gathering & Pre-Processing
-* Data Exploration & Preparation
-* Multivariate Regression Analysis
+Our research was focused on attempting to answer the following questions:
+
+1. What United States counties are most favorable for an active, healthy lifestyle?
+2. What are the differentiating characteristics that make them so?
+3. What might the best regression model be for modeling the relationship between our healthy lifestyle metric and these differentiating characteristics?
+
+Our methodology for answering these questions was a three step process: Data Gathering & Preprocessing, Data Exploration & Preparation, and Multivariate Regression Analysis. The nature of each is described briefly below:
+
+* **Data Gathering & Preprocessing**: the gathering of data, creation of our (dependent) health score variable, identification of our healthiest counties, bringing of data (from numerous sources) into a consistent form so that all of our disjointed sets could be merged into one “master” dataframe.
+* **Data Exploration & Preparation**: the investigation of our data’s characteristics, including type, range of values, presence of missing values, correlation to dependent and other independent variables, and distributions. The handling of NA’s and outliers, normalization of variable ranges onto a 0-to-1 scale, creation of features, and optimization of our initial model based on data transformations.
+* **Multivariate Regression Analysis**: the creation / further exploration of linear and regularization (ridge and lasso) regression models as applied to raw and transformed data.
+
+We train-test split our data, maintained evaluation metrics for each model, and then compared and contrasted each of our models using our evaluation metrics.
 
 
 ## Data Gathering & Preprocessing
@@ -368,7 +456,8 @@ healthiest_counties <- healthiest_counties[order(-healthiest_counties$`health_sc
 #nrow(healthiest_counties) #10
 healthiest_counties %>%
   kbl() %>%
-  kable_minimal()
+  kable_minimal() %>%
+  kable_styling(latex_options = "hold_position")
 
 ```
 
@@ -856,7 +945,8 @@ HealthScore_Corr <- sapply(df_num[v], target_corr, y=df_num$health_score)
 MDHSC <- data.frame(cbind(Missing_Data, HealthScore_Corr))
 MDHSC %>%
   kbl(caption = "Proportion of Missing Data vs. Correlation with Health Score") %>%
-  kable_minimal()
+  kable_minimal() %>%
+  kable_styling(latex_options = "hold_position")
 
 ```
 
@@ -1245,7 +1335,8 @@ output <- cbind(Model, Method, Data, Var_Num, R2_train, RMSE_train, R2_test, RMS
 
 output %>%
   kbl(caption = "Regression Model Comparison") %>%
-  kable_minimal()
+  kable_minimal() %>%
+  kable_styling(latex_options = "hold_position")
 
 ```
 
