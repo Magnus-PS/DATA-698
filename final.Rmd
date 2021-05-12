@@ -108,31 +108,35 @@ eval_metrics = function(model, df, predictions, target){
 
 ## Abstract
 
-TBD
+With a high rate of avoidable deaths and chronic disease as well as an obesity rate at two times higher than the OECD average, the forecast for American health is gloomy. One way of correcting this trend may lie in informing the public, clarifying priorities, and then modeling / mirroring the areas across the United States that are living long and living well. With that in mind, the purpose of this project is ultimately to answer three questions: 1) What United States counties are most favorable for an active, healthy lifestyle? 2) What are the differentiating characteristics that make them so? and 3) What might the best regression model be for modeling the relationship between our healthy lifestyle metric and these differentiating characteristics?
 
-### Key Words: *Feature Creation, Feature Selection, County Level Health, Health Outcomes, Regression, Regularization*
+Our methodology for addressing these questions consisted of three separate phases: Data Gathering & Preprocessing, Data Exploration & Preparation, and Multivariate Regression Analysis. We created our dependent health score variable as a combination of life expectancy, obesity, and physical activity data read in from the IHME website and then utilized our dependent variable to identify the top 10 healthiest counties (6 Colorado, 2 California, 1 Utah, and 1 Wyoming county). 
+
+Based on these counties, we extended assumptions regarding variables to especially consider, gathered typical and atypical independent variables, and then brought all data into a consistent format to form a “master” dataset. We then operated upon our dataset and identified our strongest and weakest predictors (strongest predictors included: Mortality, College, FoodInsecurity, LTHighSchool, Sun, EQI, Income, PopChg,  Bng, and UnemploymentChg), and proceeded toward model-building with only 10 of the original 24 independent variables (due to multicollinearity and weak target-correlation).
+
+Through normalization, feature creation, and AIC-optimization, we optimized on the coefficient of determination and generated our transformed linear regression model. We then tested the efficacy of this model against linear regression models drawn from raw and AIC-optimized data and regularized (ridge and lasso) regression models drawn from both our transformed and raw data. We output performance metrics for all models in a table, where the R-squared and RMSE values were used as part of our selection criterion and found the linear regression model applied to transformed data to be our strongest model, largely due to its stand out R-squared value of 0.71 scored on unseen data.
+
+**Key Words: *Feature Creation, Feature Selection, County Level Health, Health Outcomes, Regression, Regularization***
+
 
 ## Introduction
 
 ### Author
 
-*Magnus Skonberg* is a Consultant and Master of Data Science candidate at CUNY SPS, located in Middle Island NY. Although this was a solo project, I (Magnus) would like to give a special thanks to Jeff Nieman, Avraham Adler, Jaan Altosaar, and Christian Thieme for their guidance and feedback along the way.
+*Magnus Skonberg* is a Consultant and Master of Data Science candidate at CUNY SPS, who resides in Middle Island, NY. Although this was a solo project, I (Magnus) would like to give a special thanks to Jeff Nieman, Avraham Adler, Jaan Altosaar, and Christian Thieme for their guidance.
 
 ### The Problem
 
 The U.S. spends more on health care than any other OECD county yet it has the lowest life expectancy, highest number of hospitalizations from preventable causes, highest rate of avoidable deaths and a chronic disease burden and obesity rate at two times higher than the OECD average.
 
-In short, the forecast for American health is gloomy.
+The forecast for American health is gloomy, yet identifying the issue could aid in addressing it, and one way of doing so would be to highlight “bright spots”. To highlight the areas across the United States where the general populace are living long and living well, while exploring why these areas are able to succeed. Recognizing influential correlations and shedding light on the areas most conducive for leading a long and healthy life may provide example for emulation and answer the following:
 
-LEFT OFF HERE
+1. What United States counties are most favorable for an active, healthy lifestyle?
+2. What are the differentiating characteristics that make them so?
+3. What might the best regression model be for modeling the relationship between our healthy lifestyle metric and these differentiating characteristics?
 
-[insert image / graphic]
+In an attempt to answer these questions we’ll create our own healthy lifestyle metric, gather typical and atypical variables, explore their relationships, and then explore the efficacy of numerous regression models. The data will contain entries for all 3006 American counties as well as corresponding states, health scores, population, alcohol consumption and numerous features to be discussed during the Literature Review section.
 
-follow up par.
-
-state Qs
-
-transition
 
 ## Literature Review
 
@@ -1368,6 +1372,8 @@ In the data gathering and pre-processing phase, we created our dependent health 
 In the data exploration and preparation phase, we first interpreted our 3154 observations x 25 variables. We then dropped impertinent variables and NA values, identified our strongest and weakest predictors (strongest predictors included: Mortality, College, FoodInsecurity, LTHighSchool, Sun, EQI, Income, PopChg,  Bng, and UnemploymentChg), and proceeded with only 10 of the original 24 independent variables (due to multicollinearity and weak target-correlation). Through normalization, feature creation, and AIC-optimization, we optimized on the coefficient of determination (R-squared). We found our optimal (transformed) linear regression model included 16 independent variables with a coefficient of determination of 0.6734.
 
 In the multivariate regression analysis phase, we expanded upon this transformed linear regression model. We set out to explore linear regression models with raw data and AIC-optimized data, and then proceeded to use regularization (ridge and lasso) regression models on both our transformed and raw data. The aim was to explore different models and select the strongest amongst them. To do so, we train-test split our data (raw and transformed), constructed our models, and then evaluated each model’s performance on seen and unseen data. We then output the performance metrics of all models in a table, where the R-squared and RMSE values were used as part of our selection criterion. The linear regression model applied to transformed data was found to be the strongest model, largely due to its stand-out performance on unseen (testing) data.
+
+*Note: 3154 is greater than the 3009 observations which we'd noted as the number of US counties. We consider this broader range of "territories" (ie. in Alaska) as well where the observations are consistent across our dataset.*
 
 ### Areas for Future Research
 
