@@ -3,15 +3,15 @@ title: 'DATA 698 Final Research Project'
 author: "Magnus Skonberg"
 date: "`r Sys.Date()`" # Due 5/11/2021
 output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: yes
   html_document:
     toc: yes
     toc_float: yes
     number_sections: no
     theme: flatly
     highlight: tango
-  pdf_document:
-    latex_engine: xelatex
-    toc: yes
 ---
 
 ```{=html}
@@ -19,12 +19,12 @@ output:
 
 code {
   font-family: "Consolas";
-  font-size: 11px;
+  font-size: 12px;
 }
 
 pre {
   font-family: "Consolas";
-  font-size: 11px;
+  font-size: 12px;
 }
 
 </style>
@@ -184,9 +184,9 @@ The source, type, and name of each variable under consideration / for inclusion 
 ## --- Model Selection --- ##
 
 #Create Kable table to succinctly summarize variable research
-Source <- c('Bhardwaj, Amiri, Buchwald, and Amram', 'Kaminsky, Lessler, Sharfstein, and Wallace', 'Azevedo, Hallal, Wells, and Victoria', 'An, Li, and Jiang', 'Holick and Wacker', 'Bremberg', 'Ahern, Brown, and Dukas', 'Ferreira, Jardim, Jardim, Sousa, and Rosa', 'Islam, Leer, Teo, et al.', 'Hammarstrom, Janlert, and Winefield', 'Bhardwaj, Amiri, Buchwald, and Amram')
-Type <- c('Dependent', 'Dependent', 'Dependent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent')
-Variable <- c('Longevity', 'Obesity', 'Physical Activity', 'EQI (Environmental Quality)', 'Sunlight', 'Population Density', 'Nutrition', 'Alcohol Consumption', 'Income', 'Unemployment', 'Education')
+Source <- c('Bhardwaj, Amiri, Buchwald, and Amram', 'Kaminsky, Lessler, Sharfstein, and Wallace', 'Azevedo, Hallal, Wells, and Victoria', 'An, Li, and Jiang', 'Holick and Wacker', 'Bremberg', 'Ahern, Brown, and Dukas', 'Ferreira, Jardim, Jardim, Sousa, and Rosa', 'Islam, Leer, Teo, et al.', 'Hammarstrom, Janlert, and Winefield')
+Type <- c('Dependent', 'Dependent', 'Dependent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent', 'Independent')
+Variable <- c('Longevity', 'Obesity', 'Physical Activity', 'EQI (Environmental Quality)', 'Sunlight', 'Population Density', 'Nutrition', 'Alcohol Consumption', 'Income', 'Unemployment')
 
 LRVS <- cbind(Source, Type, Variable)
 
@@ -196,6 +196,8 @@ LRVS %>%
   kable_styling(latex_options = "hold_position")
 
 ```
+
+Literature Review sources cited in Bibliography section.
 
 ### Additional Research for Model Building
 
@@ -958,9 +960,9 @@ MDHSC %>%
 
 To address weak target correlation and multicollinearity we considered the exclusion of 13 variables : `Hvy`, `MortalityChg`, and `NetMig` due to weak correlation with the target variable and `HvyPctChg` `Bng`, `LTHighSchool`, `HighSchool`, `SomeCollege`, `Unemployment`, `Poverty`, `Population`, `Births`, and `Deaths` due to multicollinearity.
 
-Before doing so, we utilized the **Boruta** function for feature ranking and selection as confirmation (included in Appendix). In doing so, `MortalityChg`, `BngPctChg`, `Unemployment`, `HvyPctChg`, and `Population` were identified as the variables with the lowest importance. 
+Before doing so, we utilized the **Boruta** function for feature ranking and selection as confirmation. In doing so, `MortalityChg`, `BngPctChg`, `Unemployment`, `HvyPctChg`, and `Population` were identified as the variables with the lowest importance. 
 
-```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE, fig.height = 8, fig.width = 10}
+```{r, comment=FALSE, warning=FALSE, message=FALSE, echo=FALSE, eval=TRUE, fig.height = 8, fig.width = 10}
 #Utilize Boruta for feature ranking and selection
 library(Boruta)
 
@@ -1178,10 +1180,6 @@ Ridge regression is an extension of linear regression where model complexity and
 
 One of the major differences between linear and regularized regression is the use of a `lambda` tuning parameter. To automate the task of finding the optimal lambda value, we made use of the cv.glmnet() function.
 
-We used the glmnet package to build our regularized regression models (with `alpha` = 0 for ridge regression and `alpha` = 1 for lasso regression). Being that the corresponding function does not work with dataframes, we used the dummyVars() function from the caret package to create our model matrices and then used the predict() function to create numeric model matrices for both training and test data.
-
-Our first ridge regression model was trained on raw data while the second was trained on transformed data. We then computed the optimal lambda for each model and evaluated the models (with optimal lambda as a parameter). *Performance metrics are noted in the 'Model Selection' section.*
-
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 ###RIDGE REGRESSION (raw data)
 
@@ -1231,6 +1229,18 @@ predictions_test <- predict(raw_ridge_reg, s = ol, newx = x_test)
 eval_results(y_test, predictions_test, test_raw) #RMSE: 0.0789, RSquare: 0.659
 ```
 
+```{r, echo=F, eval=T}
+#Ridge regression lambda plot
+plot(raw_ridge_reg)
+
+```
+
+When lambda is zero, the penalty term has no effect, whereas when lambda increases to infinity, the shrinkage penalty grows and our coefficients approach zero. Our optimal lambda was computed as 0.003162278 (for raw data) and we can see from the above plot the critical role optimal lambda computation can have when evaluating our model.
+
+We used the glmnet package to build our regularized regression models (with `alpha` = 0 for ridge regression and `alpha` = 1 for lasso regression). Being that the corresponding function does not work with dataframes, we used the dummyVars() function from the caret package to create our model matrices and then used the predict() function to create numeric model matrices for both training and test data.
+
+Our first ridge regression model was trained on raw data while the second was trained on transformed data. *Performance metrics are noted in the 'Model Selection' section.*
+
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 ###RIDGE REGRESSION (transformed data)
 
@@ -1274,8 +1284,6 @@ LASSO (Least Absolute Shrinkage and Selection Operator) regression is an extensi
 
 Similar to ridge regression, the first step was to find the optimal lambda value and we automated this task through the use of the cv.glmnet() function.
 
-Our first LASSO model was trained on raw data while the second was trained on transformed data. We then computed the optimal lambda for each model and evaluated the models (with optimal lambda as a parameter). *Performance metrics are noted in the 'Model Selection' section.*
-
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 ###LASSO REGRESSION (raw data)
 
@@ -1295,6 +1303,19 @@ predictions_test <- predict(raw_lasso, s = lambda_best, newx = x_test)
 eval_results(y_test, predictions_test, test_raw) #RMSE: 0.0783, Rsquare: 0.6642
 
 ```
+
+```{r, comment=FALSE, warning=FALSE, message=FALSE, echo=F, eval=T}
+#Lasso regression lambda plots
+op <- par(mfrow=c(1, 2))
+plot(lasso_reg$glmnet.fit, "norm",   label=TRUE)
+plot(lasso_reg$glmnet.fit, "lambda", label=TRUE)
+par(op)
+
+```
+
+When lambda approaches zero, the loss function of our model approaches the OLS function and we consider more variables, whereas when lambda grows, the regularization term has a greater effect and we see fewer variables in the model. Our optimal lambda was computed as 0.001 for raw data. We can observe in the plots above the effect varying lambda (on different scales) has on coefficient values.
+
+A similar model-fitting approach to ridge regression was taken (utilizing the glmnet package), with our first LASSO model trained on raw data and the second trained on transformed data. *Performance metrics are noted in the 'Model Selection' section.*
 
 ```{r, comment=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 ###LASSO REGRESSION (transformed data)
@@ -1394,8 +1415,41 @@ They include, but are not limited to:
 
 ## Bibliography
 
-https://www.pluralsight.com/guides/linear-lasso-and-ridge-regression-with-r
+In completing this research project, reference was made to the following
 
+### Data
+
+1. IHME. United States Alcohol Use Prevalence by County 2002-2012. Retrieved from: http://ghdx.healthdata.org/record/ihme-data/united-states-alcohol-use-prevalence-county-2002-2012
+2. IHME. United States Cardiovascular Disease Mortality Rates by County 1980-2014. Retrieved from: http://ghdx.healthdata.org/record/ihme-data/united-states-cardiovascular-disease-mortality-rates-county-1980-2014
+3. USDA. Educational attainment for the U.S., States, and counties, 1970-2019. Retrieved from: https://www.ers.usda.gov/data-products/county-level-data-sets/download-data/
+4. USDA. Poverty estimates for the U.S., States, and counties, 2019. Retrieved from: https://www.ers.usda.gov/data-products/county-level-data-sets/download-data/
+5. USDA. Population estimates for the U.S., States, and counties, 2010-19. Retrieved from: https://www.ers.usda.gov/data-products/county-level-data-sets/download-data/
+6. EPA. EPA Data Commons: 2006_2010_EQI_2Jan2018_VC.csv. Retrieved from: https://edg.epa.gov/EPADataCommons/public/ORD/CPHEA/EQI_2006_2010/
+7. Feeding America. Map the Meal Gap Data. Retrieved from: https://www.feedingamerica.org/research/map-the-meal-gap/by-county (by request)
+8. CDC. North America Land Data Assimilation System (NLDAS) Daily Sunlight (KJ/m²) (1979-2011) Request. Retrieved from: https://wonder.cdc.gov/controller/datarequest/D80;jsessionid=097497410B08E44FD89ECC2AB08F?stage=results&action=sort&direction=MEASURE_DESCEND&measure=D80.M1
+9. US Census Bureau. SAIPE State and County Estimates. Retrieved from: https://www.census.gov/data/datasets/2019/demo/saipe/2019-state-and-county.html
+
+### Literature
+
+1. Bhardwaj, Amiri, Buchwald, and Amram (2020): Environmental Correlates of Reaching a Centenarian Age: Analysis of 144,665 Deaths in Washington State for 2011−2015
+2. Ahern, Brown, and Dukas (2011): A National Study of the Association Between Food Environments and County Level Health Outcomes
+3. An, Li, and Jiang (2017): Geographical Variations in the Environmental Determinants of Physical Inactivity among U.S. Adults
+4. Holick and Wacker (2013): Sunlight and Vitamin D
+5. Ferreira, Jardim, Jardim, Sousa, and Rosa (2019): Smoking, alcohol consumption and mental health: Data from the Brazilian study of Cardiovascular Risks in Adolescents (ERICA)
+6. Islam, Leer, Teo (2013): Prevalance of a Healthy Lifestyle Among Individuals with Cardiovascular Disease in High-, Middle-, and Low-Income Countries
+7. Azevedo, Hallal, Wells, and Victoria (2006): Adolescent physical activity and health: a systematic review
+8. Kaminsky, Lessler, Sharfstein, and Wallace (2019): Comparison of US County-Level Health Performance Rankings with County Cluster and National Rankings
+9. Bremberg (2020): Rural-urban mortality inequalities in four Nordic welfare states
+10. Hammarstrom, Janlert, and Winefield (2014): Length of unemployment and health-related outcomes
+
+### Guiding Resources
+
+* Datanovia. (2020). How to Normalize and Standardize Data in R for Great Heatmap Visualization [article]. Retrieved from: https://www.datanovia.com/en/blog/how-to-normalize-and-standardize-data-in-r-for-great-heatmap-visualization/
+* Deepika Singh. (2019). Linear, Lasso, and Ridge Regression with R [article]. Retrieved from: https://www.pluralsight.com/guides/linear-lasso-and-ridge-regression-with-r
+* Faraway (2015, pp. 25-49): Linear Models with R Faraway  [text]
+* Sheather (2009, pp. 263-293): A Modern Approach to Regression with R [text]
+
+***
 
 ## Appendix with Code
 
