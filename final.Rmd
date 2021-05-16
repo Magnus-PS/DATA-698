@@ -108,20 +108,20 @@ eval_metrics = function(model, df, predictions, target){
 
 ## Abstract
 
-With a high rate of avoidable deaths and chronic disease as well as an obesity rate at two times higher than the OECD average, the forecast for American health is gloomy. One way of correcting this trend may lie in informing the public, clarifying priorities, and then modeling / mirroring the areas across the United States that are living long and living well. With that in mind, the purpose of this project is ultimately to answer three questions: 1) What United States counties are most favorable for an active, healthy lifestyle? 2) What are the differentiating characteristics that make them so? and 3) What might the best regression model be for modeling the relationship between our healthy lifestyle metric and these differentiating characteristics?
+With a high rate of avoidable deaths and chronic disease as well as an obesity rate at two times higher than the OECD average, the forecast for American health is gloomy. With that in mind, the purpose of this project was ultimately to answer three questions: 1) What United States counties are most favorable for an active, healthy lifestyle? 2) What are the differentiating characteristics that make them so? and 3) What might the best regression model be for modeling the relationship between our healthy lifestyle metric and these differentiating characteristics?
 
-Our methodology for addressing these questions consisted of three separate phases: Data Gathering & Preprocessing, Data Exploration & Preparation, and Multivariate Regression Analysis. We created our dependent health score variable as a combination of life expectancy, obesity, and physical activity data read in from the IHME website and then utilized our dependent variable to identify the top 10 healthiest counties (6 Colorado, 2 California, 1 Utah, and 1 Wyoming county). 
+Our methodology for addressing these questions consisted of: Data Gathering & Preprocessing, Data Exploration & Preparation, and Multivariate Regression Analysis. We created our dependent health score variable, identified the top 10 healthiest counties, extended assumptions, gathered independent variables and brought all data into a consistent format. We then operated upon our dataset, identified our strongest and weakest predictors, and built our model with 10 of the original 24 independent variables.
 
-Based on these counties, we extended assumptions regarding variables to especially consider, gathered typical and atypical independent variables, and then brought all data into a consistent format to form a “master” dataset. We then operated upon our dataset and identified our strongest and weakest predictors (strongest predictors included: Mortality, College, FoodInsecurity, LTHighSchool, Sun, EQI, Income, PopChg,  Bng, and UnemploymentChg), and proceeded toward model-building with only 10 of the original 24 independent variables (due to multicollinearity and weak target-correlation).
+With raw and transformed data, we then optimized on the coefficient of determination (R-squared), explored numerous linear regression vs. regularization models, output performance metrics in tabular form, and selected the best regression model for modeling the relationship between healthy lifestyle and our independent variables. We used the R-squared and RMSE values as part of our selection criterion and found the linear regression model applied to transformed data to be our strongest model, largely due to its strong predictive performance for unseen data (R-squared of 0.71).
 
-Through normalization, feature creation, and AIC-optimization, we optimized on the coefficient of determination and generated our transformed linear regression model. We then tested the efficacy of this model against linear regression models drawn from raw and AIC-optimized data and regularized (ridge and lasso) regression models drawn from both our transformed and raw data. We output performance metrics for all models in a table, where the R-squared and RMSE values were used as part of our selection criterion and found the linear regression model applied to transformed data to be our strongest model, largely due to its stand out R-squared value of 0.71 scored on unseen data.
 
-**Key Words: *Feature Creation, Feature Selection, County Level Health, Health Outcomes, Regression, Regularization***
+**Key Words: *Feature Creation, Feature Selection, County Level Health, Regression, Regularization***
 
+***
 
 ## Introduction
 
-### Author
+### The Author
 
 *Magnus Skonberg* is a Consultant and Master of Data Science candidate at CUNY SPS, who resides in Middle Island, NY. Although this was a solo project, I (Magnus) would like to give a special thanks to Jeff Nieman, Avraham Adler, Jaan Altosaar, and Christian Thieme for their guidance.
 
@@ -136,6 +136,8 @@ The forecast for American health is gloomy, yet identifying the issue could aid 
 3. What might the best regression model be for modeling the relationship between our healthy lifestyle metric and these differentiating characteristics?
 
 In an attempt to answer these questions we’ll create our own healthy lifestyle metric, gather typical and atypical variables, explore their relationships, and then explore the efficacy of numerous regression models. The data will contain entries for all 3006 American counties as well as corresponding states, health scores, population, alcohol consumption and numerous features to be discussed during the Literature Review section.
+
+***
 
 
 ## Literature Review
@@ -197,11 +199,13 @@ LRVS %>%
 
 ```
 
-Literature Review sources cited in Bibliography section.
-
 ### Additional Research for Model Building
 
 Julian Faraway’s *Linear Models with R* and Simon Sheather’s *A Modern Approach to Regression with R* proved invaluable as references for applied regression, feature selection, model building and model selection.
+
+All Literature Review sources are cited in the Bibliography section.
+
+***
 
 
 ## Methodology
@@ -219,6 +223,8 @@ Our methodology for answering these questions was a three step process: Data Gat
 * **Multivariate Regression Analysis**: the creation / further exploration of linear and regularization (ridge and lasso) regression models as applied to raw and transformed data.
 
 We train-test split our data, maintained evaluation metrics for each model, and then compared and contrasted each of our models using our evaluation metrics.
+
+***
 
 
 ## Data Gathering & Preprocessing
@@ -478,7 +484,6 @@ From the above list, we note (6) Colorado, (2) California, (1) Utah and (1) Wyom
 We note these factors with interest and plan to revisit our assumptions later. We can observe the variables that are included in our optimal multi regression model as well as those that appear to carry the most predictive impact (ie. largest coefficients).
 
 With our health metric created and a brief investigation into the top 10 healthiest counties, we move on to reading in, exploring, and preparing our independent variables.
-
 
 ### Independent Variable Preprocessing
 
@@ -853,6 +858,8 @@ dim(df) #3154 x 25
 
 The result of our merging all dataframes / variables into one master is a 3154 observation x 25 variable dataframe `df`. We'll explore the resulting data frame in the next section to see what insight we might glean to better inform our data preparation and model-building.
 
+***
+
 
 ## Data Exploration & Preparation
 
@@ -956,7 +963,7 @@ MDHSC %>%
 
 ```
 
-### Feature Selection
+### Feature Selection (Differentiating Characteristics)
 
 To address weak target correlation and multicollinearity we considered the exclusion of 13 variables : `Hvy`, `MortalityChg`, and `NetMig` due to weak correlation with the target variable and `HvyPctChg` `Bng`, `LTHighSchool`, `HighSchool`, `SomeCollege`, `Unemployment`, `Poverty`, `Population`, `Births`, and `Deaths` due to multicollinearity.
 
@@ -1109,6 +1116,9 @@ eval_metrics(model_3, test2, predictions, target = 'health_score') #0.671, 0.081
 After AIC optimization, model complexity was reduced from 17 to 16 independent variables, and predictive capability was maintained. It was a useful step that appears to have enhanced our model.
 
 As a next step, we'd proceed through model building on to model selection.
+
+***
+
 
 ## Multivariate Regression Analysis
 
@@ -1375,8 +1385,10 @@ From the above model statistics, we can extend that:
 
 To find the point of balance between model complexity, goodness of fit and error, we elected Model 3. Model 3, linear regression applied to transformed data, was the most promising of models due to its simplicity, relatively low error rate (all models performed well here), and strong performance on unseen data. This last metric, unseen data performance, was the deciding factor.
 
+***
 
-## Conclusions & Next Steps
+
+## Conclusion & Next Steps
 
 ### What have I learned?
 
@@ -1410,8 +1422,7 @@ They include, but are not limited to:
 6. Consider classification rather than regression. If I would have utilized a binary health_score (ie. val > 0.50 : 1) then I could have explored numerous classification techniques on the same set of data. In some ways it would have been a completely different project that may have led to completely different insights.
 7. Cast predictions. Beyond model selection, I could have applied Model 3 to cast predictions on our (unseen) test data to then assess how accurately it actually predicted healthy lifestyle at a county level. 
 
-................................................................................
-
+\newpage
 
 ## Bibliography
 
